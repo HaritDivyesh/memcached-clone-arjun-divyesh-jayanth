@@ -1,0 +1,10 @@
+telnet localhost 11211
+Connected to localhost.
+Escape character is '^]'.
+get meg
+END
+set meg 1 0 5
+Hello
+get meg
+Hello
+END

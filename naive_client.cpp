@@ -11,6 +11,7 @@
 #define MEMCACHED_PORT 11211
 #define BUFFER_SIZE 1024
 
+/*
 void get(int sockfd, const char *key)
 {
 	char buff[BUFFER_SIZE] = {0};
@@ -20,15 +21,27 @@ void get(int sockfd, const char *key)
 	write(sockfd, buff, sizeof buff);
 }
 
-void put(int sockfd, const char *key, const char *val)
+void set(int sockfd, const char *key, const char *val)
 {
 	char buff[BUFFER_SIZE] = {0};
-	strcat(buff, "put ");
+	strcat(buff, "set ");
 	strcat(buff, key);
 	strcat(buff, " ");
 	strcat(buff, val);
 	printf("%s: %s\n", "Issuing command", buff);
 	write(sockfd, buff, sizeof buff);
+}
+*/
+
+void console(int sockfd)
+{
+	char buff[BUFFER_SIZE] = {0};
+
+	while (1) {
+		fgets(buff, sizeof buff, stdin);
+		buff[strlen(buff) - 1] = '\0';
+		write(sockfd, buff, sizeof buff);
+	}
 }
 
 int main(void)
@@ -49,8 +62,7 @@ int main(void)
 	/* Connect to the memcached server */
 	connect(sockfd, (struct sockaddr*) &server_addr, sizeof server_addr);
 
-	put(sockfd, "meg", "701");
-	get(sockfd, "meg");
+	console(sockfd);
 
 	return 0;
 }
