@@ -1,6 +1,4 @@
-/*
-* Max pending connections queue length
-*/
+/* Max pending connections queue length*/
 #define MAX_CONNECTIONS 25
 #define CLIENT_BUFFER_SIZE 1024
 #define MEMCACHED_PORT 11211
@@ -11,7 +9,6 @@
 /*
 * Replies
 */
-
 #define STORED _WRITER("STORED")
 #define NOT_STORED _WRITER("NOT_STORED")
 #define EXISTS _WRITER("EXISTS")
@@ -42,6 +39,13 @@ typedef struct {
 	char *data;
 } cache_entry;
 
+/*
+* MCMap is the map data structure that stores the hash-table
+*/
+typedef std::map<std::string, cache_entry> MCMap;
+static MCMap *map = new MCMap();
+static std::mutex map_mutex;
+
 static void write_VALUE(int client_sockfd, cache_entry *entry)
 {
 	std::ostringstream os;  
@@ -49,7 +53,7 @@ static void write_VALUE(int client_sockfd, cache_entry *entry)
 	write(client_sockfd, os.str().c_str(), strlen(os.str().c_str()));
 }
 
-static void print_map(std::map<std::string, cache_entry> *map)
+static void print_map(MCMap *map)
 {
 	for (const auto &p : *map) {
 		std::cout << "map[" << p.first << "] = ";
