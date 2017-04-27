@@ -8,43 +8,16 @@
 #include <thread>
 #include <string>
 #include <map>
+#include <sstream>
 #include <mutex>
 
-/*
-* Max pending connections queue length
-*/
-#define MAX_CONNECTIONS 25
-#define CLIENT_BUFFER_SIZE 1024
-#define MEMCACHED_PORT 11211
+#include "memcached.hh"
 
 
-typedef struct {
-	std::string key;
-	uint16_t flags;
-	int64_t expiry;
-	/* not including the delimiting \r\n */
-	uint32_t bytes;
-	uint64_t cas_unique;
-	bool noreply;
-	char *data;
-} cache_entry;
-
-
-void print_map(std::map<std::string, cache_entry> *map)
+static void handle_client(int client_sockfd, std::map<std::string, cache_entry> *map)
 {
-	for (const auto &p : *map) {
-		std::cout << "map[" << p.first << "] = ";
-		std::cout << p.second.key << ", ";
-		std::cout << p.second.flags << ", ";
-		std::cout << p.second.expiry << ", ";
-		std::cout << p.second.bytes << '\n';
-	}
-}
-
-void *handle_client(int client_sockfd, std::map<std::string, cache_entry> *map)
-{
+	printf("Client %d connected.\n", client_sockfd);
 	char buffer[CLIENT_BUFFER_SIZE] = {0};
-	printf("%s\n", "New client!!");
 
 	/*
 	* read each command from the client
@@ -53,54 +26,59 @@ void *handle_client(int client_sockfd, std::map<std::string, cache_entry> *map)
 		memset(buffer, 0, sizeof buffer);
 		read(client_sockfd, buffer, sizeof buffer);
 
+		if(strncmp(buffer, "quit", 4) == 0) {
+			close(client_sockfd);
+			return;
+		}
+
 		if(strncmp(buffer, "get ", 4) == 0) {
-			/*printf("%s: %s\n", "Received command", buffer);*/
+			/* print_map(map); */
 			buffer[strcspn(buffer, "\r\n")] = '\0';
-			char *key = buffer + 4;
-			/*print_map(map);*/
-			if ((*map).count(key) != 0) {
-				cache_entry *entry = &(*map)[key];
-				write(client_sockfd, entry->data, entry->bytes);
+			char *key = strtok(buffer + 4, WHITESPACE);
+			while (key) {
+				if ((*map).count(key) != 0) {
+					cache_entry *entry = &(*map)[key];
+					write_VALUE(client_sockfd, entry);
+					write(client_sockfd, entry->data, entry->bytes + 2);
+				}
+				key = strtok(NULL, WHITESPACE);
 			}
-			write(client_sockfd, "END\r\n", sizeof("END\r\n"));
+			END;
 			continue;
 		}
 
 		if(strncmp(buffer, "set ", 4) == 0) {
-			/*printf("%s: %s\n", "Received command", buffer);*/
 			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
-			entry->key = strtok(buffer + 4, " ");
-			entry->flags = atoi(strtok(NULL, " "));
-			entry->expiry = atoi(strtok(NULL, " "));
-			entry->bytes = atoi(strtok(NULL, " "));
+			entry->key = strtok(buffer + 4, WHITESPACE);
+			entry->flags = atoi(strtok(NULL, WHITESPACE));
+			entry->expiry = atoi(strtok(NULL, WHITESPACE));
+			entry->bytes = atoi(strtok(NULL, WHITESPACE));
 
 			/* Read actual data and add to map*/
 			memset(buffer, 0, sizeof buffer);
 			ssize_t len = read(client_sockfd, buffer, sizeof buffer);
+			/* 2 is the size of \r\n */
+			len -= 2;
 			if (len < 1) {
 				free(entry);
-				write(client_sockfd, "ERROR\r\n", sizeof("ERROR\r\n"));
+				ERROR;
+				CLIENT_ERROR("bad data chunk");
 				continue;
 			}
-			/* 2 is the size of \r\n */
-			if (len - 2 > entry->bytes) {
+			if (len > entry->bytes) {
 				free(entry);
-				write(client_sockfd,
-					"CLIENT_ERROR bad data chunk\r\n",
-					sizeof("CLIENT_ERROR bad data chunk\r\n"));
-				write(client_sockfd, "ERROR\r\n", sizeof("ERROR\r\n"));
+				ERROR;
 				continue;
 			}
 			/* reassign so that bytes is not greater than len */
 			entry->bytes = (uint32_t)len;
-			entry->data = (char*)malloc(entry->bytes);
-			memcpy(entry->data, buffer, entry->bytes);
+			entry->data = (char*)malloc(entry->bytes + 2);
+			memcpy(entry->data, buffer, entry->bytes + 2);
 			(*map)[entry->key] = *entry;
+			STORED;
 			continue;
 		}
 	}
-	/* to suppress compiler warning */
-	return NULL;
 }
 
 int main(void)
