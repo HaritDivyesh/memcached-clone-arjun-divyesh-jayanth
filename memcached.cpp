@@ -13,6 +13,14 @@
 
 #include "memcached.hh"
 
+
+/* Runs a replacement algo. Success returns 0 */
+static int run_replacement()
+{
+	return 0;
+}
+
+
 static void handle_client(int client_sockfd)
 {
 	printf("Client %d connected.\n", client_sockfd);
@@ -97,6 +105,18 @@ static void handle_client(int client_sockfd)
 			}
 			/* reassign so that bytes is not greater than len */
 			entry->bytes = (uint32_t)len;
+
+			/* CHECK FOR THRESHOLD BREACH */
+			if (memory_counter > MEMORY_THRESHOLD) {
+				int ret = run_replacement();
+				if (ret) {
+					free(entry);
+					ERROR;
+					SERVER_ERROR("Out of memory");
+					continue;
+				}
+			}
+
 
 			entry->data = (char*)malloc(entry->bytes + 2);
 			memcpy(entry->data, buffer, entry->bytes + 2);

@@ -2,6 +2,8 @@
 #define MAX_CONNECTIONS 25
 #define CLIENT_BUFFER_SIZE 1024
 #define MEMCACHED_PORT 11211
+/* 1 MB */
+#define MEMORY_THRESHOLD 1048576
 #define WHITESPACE " \t\n\v\f\r"
 
 #define _WRITER(X) write(client_sockfd, X "\r\n", sizeof(X "\r\n"))
@@ -45,6 +47,7 @@ typedef struct {
 typedef std::map<std::string, cache_entry> MCMap;
 static MCMap *map = new MCMap();
 static std::mutex map_mutex;
+static unsigned memory_counter = 0;
 
 static void write_VALUE(int client_sockfd, cache_entry *entry)
 {
