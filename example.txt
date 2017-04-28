@@ -1,0 +1,28 @@
+$ telnet localhost 11211
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+get meg
+END
+set meg 1 0 5
+Hello
+STORED
+get meg
+VALUE meg 1 5
+Hello
+END
+get meg mee
+VALUE meg 1 5
+Hello
+END
+set mee 2 0 4
+baby
+STORED
+get meg mee
+VALUE meg 1 5
+Hello
+VALUE mee 2 4
+baby
+END
+quit
+Connection closed by foreign host.
