@@ -13,6 +13,13 @@
 
 #include "memcached.hh"
 
+/*
+* Current replacement policy
+*/
+static replacement_policy get_replacement_policy()
+{
+	return policy;
+}
 
 /* Runs a replacement algo. Success returns 0 */
 static int run_replacement()
@@ -33,12 +40,12 @@ static void handle_client(int client_sockfd)
 		memset(buffer, 0, sizeof buffer);
 		read(client_sockfd, buffer, sizeof buffer);
 
-		if(strncmp(buffer, "quit", 4) == 0) {
+		if (strncmp(buffer, "quit", 4) == 0) {
 			close(client_sockfd);
 			return;
 		}
 
-		if(strncmp(buffer, "get ", 4) == 0) {
+		if (strncmp(buffer, "get ", 4) == 0) {
 			/* print_map(map); */
 			buffer[strcspn(buffer, "\r\n")] = '\0';
 			char *key = strtok(buffer + 4, WHITESPACE);
@@ -56,7 +63,7 @@ static void handle_client(int client_sockfd)
 			continue;
 		}
 
-		if(strncmp(buffer, "set ", 4) == 0) {
+		if (strncmp(buffer, "set ", 4) == 0) {
 			char *key = strtok(buffer + 4, WHITESPACE);
 			if (!key) {
 				ERROR;
@@ -82,6 +89,7 @@ static void handle_client(int client_sockfd)
 			}
 
 			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
+			memory_counter += sizeof(cache_entry);
 			entry->key = key;
 			entry->flags = atoi(flags);
 			entry->expiry = atoi(expiry);
@@ -119,6 +127,7 @@ static void handle_client(int client_sockfd)
 
 
 			entry->data = (char*)malloc(entry->bytes + 2);
+			memory_counter += entry->bytes + 2;
 			memcpy(entry->data, buffer, entry->bytes + 2);
 
 			std::lock_guard<std::mutex> guard(map_mutex);
@@ -132,12 +141,22 @@ static void handle_client(int client_sockfd)
 	}
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	int sockfd, client_sockfd;
 	struct sockaddr_in server_addr, client_addr;
 	static unsigned short port = MEMCACHED_PORT;
 	unsigned int addrlen = sizeof(client_addr);
+
+	if (argc > 1) {
+		/* already initialized as lru, so don't bother if -lru is provided */
+		if (strncmp(argv[1], "-random", 7) == 0) {
+			policy = RANDOM;
+		}
+		else if (strncmp(argv[1], "-landlord", 9) == 0) {
+			policy = LANDLORD;
+		}
+	}
 
 	/*
 	* create a TCP socket

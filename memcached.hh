@@ -27,6 +27,18 @@
 #define CLIENT_ERROR(X) _WRITER("CLIENT_ERROR " X)
 #define SERVER_ERROR(X) _WRITER("SERVER_ERROR " X)
 
+
+/*
+* Type for replacement policies
+*/
+
+typedef enum {
+	LRU,
+	RANDOM,
+	LANDLORD
+} replacement_policy;
+
+
 /*
 * This is the Cache Entry data structure stored as value in the map
 */
@@ -48,6 +60,8 @@ typedef std::map<std::string, cache_entry> MCMap;
 static MCMap *map = new MCMap();
 static std::mutex map_mutex;
 static unsigned memory_counter = 0;
+/* default value is LRU */
+static replacement_policy policy = LRU;
 
 static void write_VALUE(int client_sockfd, cache_entry *entry)
 {
