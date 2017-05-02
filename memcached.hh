@@ -1,12 +1,26 @@
-#include "cache.hh"
+#ifndef MEMCACHED_HH
+#define MEMCACHED_HH
+
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <thread>
+#include <string>
+#include <map>
+#include <sstream>
+#include <mutex>
 
 /* Max pending connections queue length*/
 #define MAX_CONNECTIONS 25
 #define CLIENT_BUFFER_SIZE 1024
 #define MEMCACHED_PORT 11211
 /* 1 MB */
-/*#define MEMORY_THRESHOLD 1048576*/
-#define MEMORY_THRESHOLD 100
+#define MEMORY_THRESHOLD 1048576
+/*#define MEMORY_THRESHOLD 100*/
 #define WHITESPACE " \t\n\v\f\r"
 
 #define _WRITER(X) write(client_sockfd, X "\r\n", sizeof(X "\r\n"))
@@ -39,11 +53,12 @@ typedef struct {
 	uint16_t flags;
 	int64_t expiry;
 	/* not including the delimiting \r\n */
-	uint32_t bytes;
+	size_t bytes;
 	uint64_t cas_unique;
 	bool noreply;
 	char *data;
 } cache_entry;
+
 
 /*
 * MCMap is the map data structure that stores the hash-table
@@ -52,8 +67,33 @@ typedef std::map<std::string, cache_entry> MCMap;
 static MCMap *map = new MCMap();
 static std::mutex map_mutex;
 static unsigned memory_counter = 0;
+
+/*
+* Type for replacement policies
+*/
+
+typedef enum {
+	LRU,
+	RANDOM,
+	LANDLORD
+} policy_t;
+
+typedef struct node_t node_t;
+struct node_t {
+	cache_entry* entry;
+	node_t *prev;
+	node_t *next;
+};
+static node_t *head = NULL;
+static node_t *tail = NULL;
+
 /* default value is LRU */
-policy_t policy = LRU;
+static policy_t policy = LRU;
+
+/*void init_replacement(void);
+policy_t get_replacement_policy(void);
+int run_replacement(size_t);
+void add_to_list(cache_entry* entry);*/
 
 static void write_VALUE(int client_sockfd, cache_entry *entry)
 {
@@ -72,3 +112,5 @@ static void print_map(MCMap *map)
 		std::cout << p.second.bytes << '\n';
 	}
 }
+
+#endif

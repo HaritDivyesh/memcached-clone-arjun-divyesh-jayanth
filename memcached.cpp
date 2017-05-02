@@ -1,18 +1,5 @@
-#include <iostream>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <thread>
-#include <string>
-#include <map>
-#include <sstream>
-#include <mutex>
-
 #include "memcached.hh"
-
+#include "cache.cpp"
 
 static void handle_client(int client_sockfd)
 {
@@ -76,6 +63,8 @@ static void handle_client(int client_sockfd)
 
 			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
 			memory_counter += sizeof(cache_entry);
+			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+			printf("%s: %u\n", "counter", memory_counter);
 			entry->key = key;
 			entry->flags = atoi(flags);
 			entry->expiry = atoi(expiry);
@@ -99,10 +88,15 @@ static void handle_client(int client_sockfd)
 			}
 			/* reassign so that bytes is not greater than len */
 			entry->bytes = (uint32_t)len;
+			entry->data = (char*)malloc(entry->bytes + 2);
+			memory_counter += entry->bytes;
+			memcpy(entry->data, buffer, entry->bytes + 2);
 
+			std::lock_guard<std::mutex> guard(map_mutex);
 			/* CHECK FOR THRESHOLD BREACH */
+			printf("%s: %u\n", "counter", memory_counter);
 			if (memory_counter > MEMORY_THRESHOLD) {
-				int ret = run_replacement();
+				int ret = run_replacement(entry->bytes);
 				if (ret) {
 					free(entry);
 					ERROR;
@@ -110,13 +104,8 @@ static void handle_client(int client_sockfd)
 					continue;
 				}
 			}
+			add_to_list(entry);
 
-
-			entry->data = (char*)malloc(entry->bytes + 2);
-			memory_counter += entry->bytes + 2;
-			memcpy(entry->data, buffer, entry->bytes + 2);
-
-			std::lock_guard<std::mutex> guard(map_mutex);
 			(*map)[entry->key] = *entry;
 			STORED;
 			continue;
@@ -143,6 +132,7 @@ int main(int argc, char **argv)
 			policy = LANDLORD;
 		}
 	}
+	init_replacement();
 
 	/*
 	* create a TCP socket
