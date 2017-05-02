@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -19,8 +20,8 @@
 #define CLIENT_BUFFER_SIZE 1024
 #define MEMCACHED_PORT 11211
 /* 1 MB */
-#define MEMORY_THRESHOLD 1048576
-/*#define MEMORY_THRESHOLD 100*/
+/* #define MEMORY_THRESHOLD 1048576 */
+#define MEMORY_THRESHOLD 250
 #define WHITESPACE " \t\n\v\f\r"
 
 #define _WRITER(X) write(client_sockfd, X "\r\n", sizeof(X "\r\n"))
@@ -86,6 +87,7 @@ struct node_t {
 };
 static node_t *head = NULL;
 static node_t *tail = NULL;
+static size_t list_size = 0;
 
 /* default value is LRU */
 static policy_t policy = LRU;

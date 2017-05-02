@@ -122,6 +122,7 @@ int main(int argc, char **argv)
 	struct sockaddr_in server_addr, client_addr;
 	static unsigned short port = MEMCACHED_PORT;
 	unsigned int addrlen = sizeof(client_addr);
+	srand(time(NULL));
 
 	if (argc > 1) {
 		/* already initialized as lru, so don't bother if -lru is provided */

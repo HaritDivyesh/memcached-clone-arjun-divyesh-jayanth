@@ -59,15 +59,87 @@ static int run_lru(size_t new_item_size)
 /******************** LRU block ends **********************/
 
 
+
+/************************* Random *************************/
 static void init_random(void)
 {
 	
 }
 
+static void add_to_list_random(cache_entry* entry)
+{
+	int rand_index;
+	node_t *tmp;
+	node_t *node = (node_t*) malloc(sizeof(node_t));
+	node->entry = entry;
+	if (!head) {
+		node->prev = node->next = NULL;
+		head = tail = node;
+		++list_size;
+		return;
+	}
+	rand_index = rand() % list_size;
+	tmp = head;
+	while (rand_index--) {
+		tmp = tmp->next;
+	}
+	node->prev = tmp;
+	node->next = tmp->next;
+	if (tmp->next)
+		tmp->next->prev = node;
+	tmp->next = node;
+	if (tmp == tail)
+		tail = node;
+}
+
+static node_t *pop_random(void)
+{
+	int rand_index;
+	node_t* tmp;
+	if (!tail)
+		return NULL;
+	rand_index = rand() % list_size;
+	tmp = head;
+	while (rand_index--) {
+		tmp = tmp->next;
+	}
+	if (tmp->prev)
+		tmp->prev->next = tmp->next;
+	if (tmp->next)
+		tmp->next->prev = tmp->prev;
+	if (tmp == tail)
+		tail = tmp->prev;
+	if (tmp == head)
+		head = tmp->next;
+	return tmp;
+}
+
 static int run_random(size_t new_item_size)
 {
-	return 0;	
+	printf("%s\n", "running RANDOM.");
+	size_t poped_size = 0;
+	node_t *poped;
+	do {
+		printf("%s\n", "popping");
+		poped = pop_random();
+		if (!poped)
+			return -1;
+		printf("%s\n", "popped valid node");
+		poped_size += poped->entry->bytes;
+		printf("poped size: %lu\n", poped_size);
+		free(poped->entry->data);
+		memory_counter -= poped_size;
+		map->erase(poped->entry->key);
+		printf("%s %s\n", "erased key:", poped->entry->key.c_str());
+		memory_counter -= sizeof(cache_entry);
+		free(poped);
+		printf("%s: %u\n", "counter after erase", memory_counter);
+	} while (poped_size < new_item_size);
+	return 0;
 }
+
+/******************* Random block ends ********************/
+
 
 static void init_landlord(void)
 {
@@ -103,9 +175,9 @@ void add_to_list(cache_entry* entry)
 	policy_t curr_policy = get_replacement_policy();
 	if (curr_policy == LRU)
 		add_to_list_lru(entry);
-	/*if (curr_policy == RANDOM)
+	if (curr_policy == RANDOM)
 		add_to_list_random(entry);
-	if (curr_policy == LANDLORD)
+	/*if (curr_policy == LANDLORD)
 		add_to_list_landlord(entry);*/
 }
 
