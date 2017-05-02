@@ -13,20 +13,6 @@
 
 #include "memcached.hh"
 
-/*
-* Current replacement policy
-*/
-static replacement_policy get_replacement_policy()
-{
-	return policy;
-}
-
-/* Runs a replacement algo. Success returns 0 */
-static int run_replacement()
-{
-	return 0;
-}
-
 
 static void handle_client(int client_sockfd)
 {

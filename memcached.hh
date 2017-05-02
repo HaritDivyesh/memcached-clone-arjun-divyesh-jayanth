@@ -1,9 +1,12 @@
+#include "cache.hh"
+
 /* Max pending connections queue length*/
 #define MAX_CONNECTIONS 25
 #define CLIENT_BUFFER_SIZE 1024
 #define MEMCACHED_PORT 11211
 /* 1 MB */
-#define MEMORY_THRESHOLD 1048576
+/*#define MEMORY_THRESHOLD 1048576*/
+#define MEMORY_THRESHOLD 100
 #define WHITESPACE " \t\n\v\f\r"
 
 #define _WRITER(X) write(client_sockfd, X "\r\n", sizeof(X "\r\n"))
@@ -29,17 +32,6 @@
 
 
 /*
-* Type for replacement policies
-*/
-
-typedef enum {
-	LRU,
-	RANDOM,
-	LANDLORD
-} replacement_policy;
-
-
-/*
 * This is the Cache Entry data structure stored as value in the map
 */
 typedef struct {
@@ -61,7 +53,7 @@ static MCMap *map = new MCMap();
 static std::mutex map_mutex;
 static unsigned memory_counter = 0;
 /* default value is LRU */
-static replacement_policy policy = LRU;
+policy_t policy = LRU;
 
 static void write_VALUE(int client_sockfd, cache_entry *entry)
 {
