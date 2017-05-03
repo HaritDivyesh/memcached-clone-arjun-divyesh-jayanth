@@ -158,6 +158,7 @@ static int run_landlord(size_t new_item_size)
      node_t *temp = head;
      while(temp != NULL){
        temp->cost -= delta*sizeof(temp->entry);
+       node_t *next_entry = temp->next;
        if(temp->cost == 0.0){
          space_cleared += sizeof(temp->entry);
          
@@ -167,6 +168,8 @@ static int run_landlord(size_t new_item_size)
          free(temp);
          delta = update_delta();
        }
+       
+       temp = next;
      }  
    }
 	return 0;	
