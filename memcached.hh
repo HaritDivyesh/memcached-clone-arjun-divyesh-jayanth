@@ -14,6 +14,7 @@
 #include <map>
 #include <sstream>
 #include <mutex>
+#include <limits>
 
 /* Max pending connections queue length*/
 #define MAX_CONNECTIONS 25
@@ -84,10 +85,12 @@ struct node_t {
 	cache_entry* entry;
 	node_t *prev;
 	node_t *next;
+        float cost;   // for landlord credit
 };
 static node_t *head = NULL;
 static node_t *tail = NULL;
 static size_t list_size = 0;
+static float delta = FLT_MAX; // for current min(credit(entry)/size(entry))
 
 /* default value is LRU */
 static policy_t policy = LRU;

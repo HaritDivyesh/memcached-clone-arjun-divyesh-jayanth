@@ -140,14 +140,35 @@ static int run_random(size_t new_item_size)
 
 /******************* Random block ends ********************/
 
+static int update_delta()
+{
+
+}
 
 static void init_landlord(void)
 {
 	
 }
-
+//very naive solution. Needs optimization. Not tested.
 static int run_landlord(size_t new_item_size)
 {
+   size_t space_cleared = 0;
+   
+   while( space_cleared < new_item_size ){
+     node_t *temp = head;
+     while(temp != NULL){
+       temp->cost -= delta*sizeof(temp->entry);
+       if(temp->cost == 0.0){
+         space_cleared += sizeof(temp->entry);
+         
+         temp->prev->next = temp->next;
+         temp->next->prev = temp->prev; 
+         memory_counter -= sizeof(temp->entry);
+         free(temp);
+         delta = update_delta();
+       }
+     }  
+   }
 	return 0;	
 }
 
