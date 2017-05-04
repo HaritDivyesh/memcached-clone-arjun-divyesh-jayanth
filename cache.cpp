@@ -142,7 +142,7 @@ static int run_random(size_t new_item_size)
 
 static int update_delta()
 {
-
+  return 0;
 }
 
 static void init_landlord(void)
@@ -169,7 +169,7 @@ static int run_landlord(size_t new_item_size)
          delta = update_delta();
        }
        
-       temp = next;
+       temp = next_entry;
      }  
    }
 	return 0;	
