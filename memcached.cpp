@@ -37,6 +37,7 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "set ", 4) == 0) {
+			ssize_t len;
 			char *key = strtok(buffer + 4, WHITESPACE);
 			if (!key) {
 				ERROR;
@@ -72,7 +73,10 @@ static void handle_client(int client_sockfd)
 
 			/* Read actual data and add to map*/
 			memset(buffer, 0, sizeof buffer);
-			ssize_t len = read(client_sockfd, buffer, sizeof buffer);
+			len = 0;
+			while (len < entry->bytes) {
+				len += read(client_sockfd, buffer + len, sizeof buffer - len);
+			}
 			/* 2 is the size of \r\n */
 			len -= 2;
 			if (len < 1) {
