@@ -140,7 +140,16 @@ static int run_random(size_t new_item_size)
 
 /******************* Random block ends ********************/
 
-static int update_delta()
+static void insert_delta(cache_entry *entry)
+{
+  //return 0;
+}
+
+static void pop_delta()
+{
+}
+
+static int get_new_delta()
 {
   return 0;
 }
@@ -149,6 +158,25 @@ static void init_landlord(void)
 {
 	
 }
+
+static void add_to_list_landlord(cache_entry* entry)
+{
+	node_t *node = (node_t*) malloc(sizeof(node_t));
+	node->entry = entry;
+	node->next = NULL;
+	if (!head) {
+		node->prev = NULL;
+		head = tail = node;
+		return;
+	}
+	node->prev = tail;
+	tail->next = node;
+	tail = node;
+	insert_delta(entry);
+}
+
+
+
 //very naive solution. Needs optimization. Not tested.
 static int run_landlord(size_t new_item_size)
 {
@@ -166,7 +194,8 @@ static int run_landlord(size_t new_item_size)
          temp->next->prev = temp->prev; 
          memory_counter -= sizeof(temp->entry);
          free(temp);
-         delta = update_delta();
+         pop_delta();
+         delta = get_new_delta();
        }
        
        temp = next_entry;
@@ -201,8 +230,8 @@ void add_to_list(cache_entry* entry)
 		add_to_list_lru(entry);
 	if (curr_policy == RANDOM)
 		add_to_list_random(entry);
-	/*if (curr_policy == LANDLORD)
-		add_to_list_landlord(entry);*/
+	if (curr_policy == LANDLORD)
+		add_to_list_landlord(entry);
 }
 
 
