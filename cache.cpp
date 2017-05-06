@@ -12,7 +12,6 @@ static void add_to_list_lru(cache_entry* entry)
 	if (!head) {
 		node->prev = NULL;
 		head = tail = node;
-		node->cost = entry->bytes;
 		return;
 	}
 	node->prev = tail;
@@ -98,7 +97,6 @@ static void add_to_list_random(cache_entry* entry)
 		node->prev = node->next = NULL;
 		head = tail = node;
 		++list_size;
-		node->cost = entry->bytes;
 		return;
 	}
 	rand_index = rand() % list_size;
