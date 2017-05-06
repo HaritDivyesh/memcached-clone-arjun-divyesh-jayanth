@@ -108,11 +108,11 @@ static void handle_client(int client_sockfd)
 			}
 
 			/* delete the key */
-			map->erase(key);
-			memory_counter -= sizeof(cache_entry);
 			free(entry->data);
 			memory_counter -= entry->bytes;
 			remove_from_list(entry);
+			map->erase(key);
+			memory_counter -= sizeof(cache_entry);
 
 			/* create new entry */
 			entry = (cache_entry*) malloc(sizeof(cache_entry));
@@ -144,7 +144,26 @@ static void handle_client(int client_sockfd)
 			(*map)[entry->key] = *entry;
 			STORED;
 			continue;
+		}
 
+		if (strncmp(buffer, "delete ", 7) == 0) {
+			buffer[strcspn(buffer, "\r\n")] = '\0';
+			char *key = strtok(buffer + strlen("delete "), WHITESPACE);
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+			if ((*map).count(key) == 0) {
+				NOT_FOUND;
+				continue;
+			}
+			cache_entry *entry = &(*map)[key];
+			/* delete the key */
+			free(entry->data);
+			memory_counter -= entry->bytes;
+			remove_from_list(entry);
+			map->erase(key);
+			memory_counter -= sizeof(cache_entry);
+			DELETED;
+			continue;
 		}
 
 		if (strncmp(buffer, "add ", 4) == 0) {
@@ -258,12 +277,6 @@ static void handle_client(int client_sockfd)
 		continue;
 		}
 
-		if (strncmp(buffer, "delete ", 7) == 0) {
-
-
-		END;
-		continue;
-		}
 
 		if (strncmp(buffer, "incr ", 5) == 0) { 
 
