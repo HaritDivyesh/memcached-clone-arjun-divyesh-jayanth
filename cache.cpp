@@ -18,7 +18,6 @@ static void add_to_list_lru(cache_entry* entry)
 	node->prev = tail;
 	tail->next = node;
 	tail = node;
-	node->cost = entry->bytes;
 }
 
 /* this func is also reused for random */
@@ -114,8 +113,6 @@ static void add_to_list_random(cache_entry* entry)
 	tmp->next = node;
 	if (tmp == tail)
 		tail = node;
-		
-	node->cost = entry->bytes;
 }
 
 static void remove_from_list_random(cache_entry* entry)
