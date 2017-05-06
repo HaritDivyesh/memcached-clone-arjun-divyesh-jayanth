@@ -20,6 +20,11 @@ static void handle_client(int client_sockfd)
 			return;
 		}
 
+		if (strncmp(buffer, "version", 4) == 0) {
+			VERSION;
+			continue;
+		}
+
 		/* get and gets */
 		if (strncmp(buffer, "get", 3) == 0) {
 			unsigned gets_flag = 0;

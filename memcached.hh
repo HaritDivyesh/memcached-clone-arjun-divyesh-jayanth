@@ -16,6 +16,8 @@
 #include <mutex>
 #include <float.h>
 
+#define VERSION_STR "0.0.1"
+
 /* Max pending connections queue length*/
 #define MAX_CONNECTIONS 25
 #define CLIENT_BUFFER_SIZE 1024
@@ -37,7 +39,7 @@
 #define DELETED _WRITER("DELETED")
 #define TOUCHED _WRITER("TOUCHED")
 #define END _WRITER("END")
-
+#define VERSION _WRITER("VERSION " VERSION_STR)
 
 /*
 * Error strings
