@@ -62,7 +62,7 @@ static void handle_client(int client_sockfd)
 			//No check for flags or exp time
 		
 			ssize_t len;
-			char *key = strtok(strlen("append "), WHITESPACE);
+			char *key = strtok((buffer + strlen("append ")), WHITESPACE);
 			if (!key) {
 				ERROR;
 				continue;
@@ -103,9 +103,9 @@ static void handle_client(int client_sockfd)
 					/* reassign so that bytes is not greater than len */
 					entry->cas_unique = generate_cas_unique();
 					entry->bytes = (uint32_t)len + entry->bytes;
-					entry->data = realloc(entry->data, entry->bytes);
+					entry->data = (char*) realloc(entry->data, entry->bytes);
 					memory_counter += entry->bytes;
-					memcpy(entry->data, buffer, entry->bytes + 2);
+					memcpy(entry->data + entry->bytes, buffer, entry->bytes + 2);
 
 					std::lock_guard<std::mutex> guard(map_mutex);
 					/* CHECK FOR THRESHOLD BREACH */
@@ -127,6 +127,7 @@ static void handle_client(int client_sockfd)
 				
 				}
 				key = strtok(NULL, WHITESPACE);
+			}
 		}
 
 
@@ -136,7 +137,7 @@ static void handle_client(int client_sockfd)
 		//No flags or exp time
 
 		ssize_t len;
-		char *key = strtok(strlen("prepend "), WHITESPACE);
+		char *key = strtok((buffer + strlen("prepend ")), WHITESPACE);
 		if (!key) {
 			ERROR;
 			continue;
@@ -191,7 +192,7 @@ static void handle_client(int client_sockfd)
 
 		if (strncmp(buffer, "set ", 4) == 0) {
 			ssize_t len;
-			char *key = strtok(strlen("set "), WHITESPACE);
+			char *key = strtok((buffer + strlen("set ")), WHITESPACE);
 			if (!key) {
 				ERROR;
 				continue;
