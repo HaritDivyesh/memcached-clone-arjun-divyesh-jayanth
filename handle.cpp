@@ -47,6 +47,106 @@ static void handle_client(int client_sockfd)
 			continue;
 		}
 
+		if (strncmp(buffer, "cas ", 4) == 0) {
+			ssize_t len;
+			cache_entry *entry;
+			char readbuffer[CLIENT_BUFFER_SIZE] = {0};
+			char *key = strtok(buffer + 4, WHITESPACE);
+			if (!key) {
+				ERROR;
+				continue;
+			}
+
+			char *flags = strtok(NULL, WHITESPACE);
+			if (!flags) {
+				ERROR;
+				continue;
+			}
+
+			char *expiry = strtok(NULL, WHITESPACE);
+			if (!expiry) {
+				ERROR;
+				continue;
+			}
+
+			char *bytes = strtok(NULL, WHITESPACE);
+			if (!bytes) {
+				ERROR;
+				continue;
+			}
+
+			char *cas_unique = strtok(NULL, WHITESPACE);
+			if (!cas_unique) {
+				ERROR;
+				continue;
+			}
+
+			len = 0;
+			while (len < atoi(bytes)) {
+				len += read(client_sockfd, readbuffer + len, sizeof readbuffer - len);
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+			if ((*map).count(key) == 0) {
+				NOT_FOUND;
+				continue;
+			}
+			entry = &(*map)[key];
+
+			/* cas stores data only if no one else has updated the data since client read it last */
+			if (entry->cas_unique != atoi(cas_unique)) {
+				EXISTS;
+				continue;
+			}
+
+			/* 2 is the size of \r\n */
+			len -= 2;
+			if (len < 1 || len > atoi(bytes)) {
+				ERROR;
+				CLIENT_ERROR("bad data chunk");
+				continue;
+			}
+
+			/* delete the key */
+			map->erase(key);
+			memory_counter -= sizeof(cache_entry);
+			free(entry->data);
+			memory_counter -= entry->bytes;
+			remove_from_list(entry);
+
+			/* create new entry */
+			entry = (cache_entry*) malloc(sizeof(cache_entry));
+			memory_counter += sizeof(cache_entry);
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			entry->flags = atoi(flags);
+			entry->expiry = atoi(expiry);
+			entry->bytes = atoi(bytes);
+			entry->cas_unique = generate_cas_unique();
+
+			entry->data = (char*)malloc(entry->bytes + 2);
+			memory_counter += entry->bytes;
+			memcpy(entry->data, readbuffer, entry->bytes + 2);
+
+			/* CHECK FOR THRESHOLD BREACH */
+			printf("%s: %u\n", "counter", memory_counter);
+			if (memory_counter > MEMORY_THRESHOLD) {
+				int ret = run_replacement(entry->bytes);
+				if (ret) {
+					free(entry);
+					ERROR;
+					SERVER_ERROR("Out of memory");
+					continue;
+				}
+			}
+			add_to_list(entry);
+
+			(*map)[entry->key] = *entry;
+			STORED;
+			continue;
+
+		}
+
 		if (strncmp(buffer, "add ", 4) == 0) {
 		
 
@@ -108,13 +208,6 @@ static void handle_client(int client_sockfd)
 			ERROR;
 			continue;
 		}		
-
-		/* default case */
-		ERROR;
-		}
-
-		if (strncmp(buffer, "cas ", 4) == 0) {
-		
 
 		/* default case */
 		ERROR;
@@ -195,6 +288,7 @@ static void handle_client(int client_sockfd)
 			while (len < entry->bytes) {
 				len += read(client_sockfd, buffer + len, sizeof buffer - len);
 			}
+
 			/* 2 is the size of \r\n */
 			len -= 2;
 			if (len < 1) {
