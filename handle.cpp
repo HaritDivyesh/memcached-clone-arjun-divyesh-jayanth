@@ -50,54 +50,93 @@ static void handle_client(int client_sockfd)
 		if (strncmp(buffer, "add ", 4) == 0) {
 		
 
-		/* default case */
-		ERROR;
-
 		}
 
-		if (strncmp(buffer, "replace ", 8) == 0) { //8?
+		if (strncmp(buffer, "replace ", 8) == 0) {
 		
-
-		/* default case */
-		ERROR;
+		
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
 		
-		//No flags or exp time
+			//No check for flags or exp time
 		
-		ssize_t len;
-		char *key = strtok(buffer + 4, WHITESPACE);
-		if (!key) {
-			ERROR;
-			continue;
-		}
-
-		char *bytes = strtok(NULL, WHITESPACE);
-		if (!bytes) {
-			ERROR;
-			continue;
-		}
-
-		while (key) {
-			if ((*map).count(key) != 0) {
-				cache_entry *entry = &(*map)[key];
-				///////////
+			ssize_t len;
+			char *key = strtok(strlen("append "), WHITESPACE);
+			if (!key) {
+				ERROR;
+				continue;
 			}
-			key = strtok(NULL, WHITESPACE);
+
+			char *bytes = strtok(NULL, WHITESPACE);
+			if (!bytes) {
+				ERROR;
+				continue;
+			}
+
+			while (key) {
+				if ((*map).count(key) != 0) {
+					cache_entry *entry = &(*map)[key];
+					memset(buffer, 0, sizeof buffer);
+					len = 0;
+				
+					/* Condition depending on prof. response
+					while (len < entry->bytes) {
+					} */
+
+					/* get len to append */
+					len += read(client_sockfd, buffer + len, sizeof buffer - len);
+					len -= 2;
+					if (len < 1) {
+						ERROR;
+						CLIENT_ERROR("Nothing added to value");
+						continue;
+					}
+
+					/* Condition depending on prof. response
+					if (len > entry->bytes) {
+						free(entry);
+						ERROR;
+						continue;
+					} /*
+
+					/* reassign so that bytes is not greater than len */
+					entry->cas_unique = generate_cas_unique();
+					entry->bytes = (uint32_t)len + entry->bytes;
+					entry->data = realloc(entry->data, entry->bytes);
+					memory_counter += entry->bytes;
+					memcpy(entry->data, buffer, entry->bytes + 2);
+
+					std::lock_guard<std::mutex> guard(map_mutex);
+					/* CHECK FOR THRESHOLD BREACH */
+					printf("%s: %u\n", "counter", memory_counter);
+					if (memory_counter > MEMORY_THRESHOLD) {
+						int ret = run_replacement(entry->bytes);
+						if (ret) {
+							free(entry);
+							ERROR;
+							SERVER_ERROR("Out of memory");
+							continue;
+						}
+					}
+					add_to_list(entry);
+
+					(*map)[entry->key] = *entry;
+					STORED;
+					continue;
+				
+				}
+				key = strtok(NULL, WHITESPACE);
 		}
 
 
-		/* default case */
-		ERROR;
-		}
 
 		if (strncmp(buffer, "prepend ", 8) == 0) { 
 		
 		//No flags or exp time
 
 		ssize_t len;
-		char *key = strtok(buffer + 4, WHITESPACE);
+		char *key = strtok(strlen("prepend "), WHITESPACE);
 		if (!key) {
 			ERROR;
 			continue;
@@ -109,15 +148,12 @@ static void handle_client(int client_sockfd)
 			continue;
 		}		
 
-		/* default case */
-		ERROR;
 		}
 
 		if (strncmp(buffer, "cas ", 4) == 0) {
 		
 
-		/* default case */
-		ERROR;
+		
 		}
 
 		if (strncmp(buffer, "gets ", 5) == 0) { 
@@ -155,7 +191,7 @@ static void handle_client(int client_sockfd)
 
 		if (strncmp(buffer, "set ", 4) == 0) {
 			ssize_t len;
-			char *key = strtok(buffer + 4, WHITESPACE);
+			char *key = strtok(strlen("set "), WHITESPACE);
 			if (!key) {
 				ERROR;
 				continue;
