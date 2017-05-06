@@ -1,3 +1,8 @@
+static uint64_t generate_cas_unique(void)
+{
+	return (int64_t)rand();
+}
+
 static void handle_client(int client_sockfd)
 {
 	printf("Client %d connected.\n", client_sockfd);
@@ -15,8 +20,17 @@ static void handle_client(int client_sockfd)
 			return;
 		}
 
-		if (strncmp(buffer, "get ", 4) == 0) {
-			/* print_map(map); */
+		/* get and gets */
+		if (strncmp(buffer, "get", 3) == 0) {
+			unsigned gets_flag = 0;
+			if (strncmp(buffer, "gets ", 4) == 0)
+				gets_flag = 1;
+			/* Assert not any arbitrary command beginning with get */
+			if (strncmp(buffer + strlen("get") + gets_flag, " ", 1) != 0) {
+				ERROR;
+				continue;
+			}
+
 			buffer[strcspn(buffer, "\r\n")] = '\0';
 			char *key = strtok(buffer + 4, WHITESPACE);
 
@@ -24,7 +38,7 @@ static void handle_client(int client_sockfd)
 			while (key) {
 				if ((*map).count(key) != 0) {
 					cache_entry *entry = &(*map)[key];
-					write_VALUE(client_sockfd, entry);
+					write_VALUE(client_sockfd, entry, gets_flag);
 					write(client_sockfd, entry->data, entry->bytes + 2);
 				}
 				key = strtok(NULL, WHITESPACE);
@@ -173,6 +187,7 @@ static void handle_client(int client_sockfd)
 			entry->flags = atoi(flags);
 			entry->expiry = atoi(expiry);
 			entry->bytes = atoi(bytes);
+			entry->cas_unique = generate_cas_unique();
 
 			/* Read actual data and add to map*/
 			memset(buffer, 0, sizeof buffer);

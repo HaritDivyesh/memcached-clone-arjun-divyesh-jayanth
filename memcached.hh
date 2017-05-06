@@ -100,10 +100,13 @@ policy_t get_replacement_policy(void);
 int run_replacement(size_t);
 void add_to_list(cache_entry* entry);*/
 
-static void write_VALUE(int client_sockfd, cache_entry *entry)
+static void write_VALUE(int client_sockfd, cache_entry *entry, unsigned gets_flag)
 {
 	std::ostringstream os;  
-	os << "VALUE " << entry->key << " " << entry->flags << " " << entry->bytes << "\r\n";
+	os << "VALUE " << entry->key << " " << entry->flags << " " << entry->bytes;
+	if (gets_flag)
+		os << " " << entry->cas_unique;
+	os << "\r\n";
 	write(client_sockfd, os.str().c_str(), strlen(os.str().c_str()));
 }
 
