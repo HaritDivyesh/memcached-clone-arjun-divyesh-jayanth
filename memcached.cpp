@@ -36,6 +36,75 @@ static void handle_client(int client_sockfd)
 			continue;
 		}
 
+		if (strncmp(buffer, "add ", 4) == 0) {
+		
+
+		/* default case */
+		ERROR;
+
+		}
+
+		if (strncmp(buffer, "replace ", 8) == 0) { //8?
+		
+
+		/* default case */
+		ERROR;
+		}
+
+		if (strncmp(buffer, "append ", 7) == 0) {
+		
+		//No flags or exp time
+		/* default case */
+		ERROR;
+		}
+
+		if (strncmp(buffer, "prepend ", 8) == 0) { 
+		
+		//No flags or exp time
+		/* default case */
+		ERROR;
+		}
+
+		if (strncmp(buffer, "cas ", 4) == 0) {
+		
+
+		/* default case */
+		ERROR;
+		}
+
+		if (strncmp(buffer, "gets ", 5) == 0) { 
+
+
+		END;
+		continue;
+		}
+
+		if (strncmp(buffer, "delete ", 7) == 0) {
+
+
+		END;
+		continue;
+		}
+
+		if (strncmp(buffer, "incr ", 5) == 0) { 
+
+
+		END;
+		continue;
+		}
+		
+		if (strncmp(buffer, "decr ", 5) == 0) { 
+
+
+		END;
+		continue;
+		}
+
+		if (strncmp(buffer, "stats ", 6) == 0) { 
+
+		}
+				
+
 		if (strncmp(buffer, "set ", 4) == 0) {
 			ssize_t len;
 			char *key = strtok(buffer + 4, WHITESPACE);
