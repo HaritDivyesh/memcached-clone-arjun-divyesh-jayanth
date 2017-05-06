@@ -12,11 +12,13 @@ static void add_to_list_lru(cache_entry* entry)
 	if (!head) {
 		node->prev = NULL;
 		head = tail = node;
+		node->cost = entry->bytes;
 		return;
 	}
 	node->prev = tail;
 	tail->next = node;
 	tail = node;
+	node->cost = entry->bytes;
 }
 
 static node_t *pop_lru(void)
@@ -76,6 +78,7 @@ static void add_to_list_random(cache_entry* entry)
 		node->prev = node->next = NULL;
 		head = tail = node;
 		++list_size;
+		node->cost = entry->bytes;
 		return;
 	}
 	rand_index = rand() % list_size;
@@ -90,6 +93,8 @@ static void add_to_list_random(cache_entry* entry)
 	tmp->next = node;
 	if (tmp == tail)
 		tail = node;
+		
+	node->cost = entry->bytes;
 }
 
 static node_t *pop_random(void)
@@ -142,16 +147,33 @@ static int run_random(size_t new_item_size)
 
 static void insert_delta(cache_entry *entry)
 {
+//insert new item to cost map
   //return 0;
 }
 
 static void pop_delta()
 {
+//delete from cost map
 }
 
-static int get_new_delta()
+static float get_new_delta()
 {
-  return 0;
+//return the new minimum from cost map
+
+  node_t *temp = head;
+  float min = FLT_MAX;
+  while(temp != NULL){
+       node_t *next_entry = temp->next;
+       //std::cout<<"2\n";
+       float fraction = (float)temp->cost/temp->entry->bytes;
+       if(fraction <= min){
+         min = fraction;
+       }
+       
+       temp = next_entry;
+     }  
+  
+  return min;
 }
 
 static void init_landlord(void)
@@ -164,15 +186,19 @@ static void add_to_list_landlord(cache_entry* entry)
 	node_t *node = (node_t*) malloc(sizeof(node_t));
 	node->entry = entry;
 	node->next = NULL;
+	
+	//std::cout<<"Node added\n";
 	if (!head) {
 		node->prev = NULL;
 		head = tail = node;
+		node->cost = entry->bytes;
 		return;
 	}
 	node->prev = tail;
 	tail->next = node;
 	tail = node;
-	insert_delta(entry);
+	node->cost = entry->bytes;
+	//insert_delta(entry);
 }
 
 
@@ -184,18 +210,35 @@ static int run_landlord(size_t new_item_size)
    
    while( space_cleared < new_item_size ){
      node_t *temp = head;
+     //std::cout<<"1\n";
+     delta = get_new_delta();
      while(temp != NULL){
-       temp->cost -= delta*sizeof(temp->entry);
+       //std::cout<<"3\n";
+       temp->cost -= delta*temp->entry->bytes;
+       //std::cout<<"31\n";
        node_t *next_entry = temp->next;
+       //std::cout<<"32\n";
        if(temp->cost == 0.0){
-         space_cleared += sizeof(temp->entry);
-         
+       //std::cout<<"33\n";
+         space_cleared += sizeof(temp->entry->bytes)+sizeof(cache_entry);
+        //std::cout<<"34\n"; 
+        
+        if(temp->prev )
          temp->prev->next = temp->next;
+         //std::cout<<"35\n"; 
+         
+        if(temp->next)
          temp->next->prev = temp->prev; 
-         memory_counter -= sizeof(temp->entry);
+         
+          //std::cout<<"36\n";
+         map->erase(temp->entry->key);
+          //std::cout<<"37\n";
+         memory_counter -= sizeof(temp->entry->bytes)+sizeof(cache_entry);
+          //std::cout<<"38\n";
          free(temp);
-         pop_delta();
-         delta = get_new_delta();
+          //std::cout<<"39\n";
+        // pop_delta();
+        // delta = get_new_delta();
        }
        
        temp = next_entry;
