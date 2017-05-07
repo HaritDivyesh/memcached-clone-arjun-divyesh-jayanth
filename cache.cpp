@@ -167,16 +167,6 @@ static int run_random(size_t new_item_size)
 
 /******************* Random block ends ********************/
 
-static void insert_delta(cache_entry *entry)
-{
-//insert new item to cost map
-  //return 0;
-}
-
-static void pop_delta()
-{
-//delete from cost map
-}
 
 static float get_new_delta()
 {
@@ -184,7 +174,7 @@ static float get_new_delta()
 
   node_t *temp = head;
   float min = FLT_MAX;
-  while(temp != NULL){
+  /*while(temp != NULL){
        node_t *next_entry = temp->next;
        //std::cout<<"2\n";
        float fraction = (float)temp->cost/temp->entry->bytes;
@@ -193,7 +183,9 @@ static float get_new_delta()
        }
        
        temp = next_entry;
-     }  
+     }  */
+  
+  min = (float)head->cost/head->entry->bytes;
   
   return min;
 }
@@ -203,65 +195,105 @@ static void init_landlord(void)
 	
 }
 
+static int set_cost(cache_entry *entry)
+{
+  int res = std::time(NULL) - (*cache_miss_map)[entry->key];
+  cache_miss_map->erase(entry->key);
+  printf("entry cost = %d\n", res);
+  return res;
+}
+
 static void add_to_list_landlord(cache_entry* entry)
 {
 	node_t *node = (node_t*) malloc(sizeof(node_t));
 	node->entry = entry;
 	node->next = NULL;
 	
-	//std::cout<<"Node added\n";
+	std::cout<<"Node added\n";
 	if (!head) {
 		node->prev = NULL;
 		head = tail = node;
 		node->cost = entry->bytes;
 		return;
 	}
-	node->prev = tail;
+	node_t *temp = head;
+	node_t *prev = NULL;
+	while(temp != NULL && entry->bytes <= temp->cost){
+	  prev = temp;
+	  temp = temp->next;
+	}
+	
+	node->next = temp;
+	node->prev = prev;
+	
+	if(temp == NULL)
+	  tail = node;
+	else
+	  temp->prev = node;
+	
+	if(prev == NULL)
+	  head = node;
+	else
+	  prev->next = node;
+	
+	node->cost = set_cost(entry);
+	/*node->prev = tail;
 	tail->next = node;
 	tail = node;
-	node->cost = entry->bytes;
-	//insert_delta(entry);
+	node->cost = entry->bytes;*/
 }
 
 
 
-//very naive solution. Needs optimization. Not tested.
+//very naive solution. Needs optimization. Not tested.         
 static int run_landlord(size_t new_item_size)
 {
    size_t space_cleared = 0;
-   
-   while( space_cleared < new_item_size ){
+   //std::lock_guard<std::mutex> guard(list_mutex);
+   while( space_cleared < new_item_size )
+   {
      node_t *temp = head;
      //std::cout<<"1\n";
      delta = get_new_delta();
-     while(temp != NULL){
+     while(temp != NULL)
+     {
        //std::cout<<"3\n";
        temp->cost -= delta*temp->entry->bytes;
        //std::cout<<"31\n";
        node_t *next_entry = temp->next;
        //std::cout<<"32\n";
-       if(temp->cost == 0.0){
-       //std::cout<<"33\n";
-         space_cleared += temp->entry->bytes+sizeof(cache_entry);
-        //std::cout<<"34\n"; 
+       
+       if(temp->cost == 0.0)
+       {
+          //std::cout<<"33\n";
+          space_cleared += temp->entry->bytes+sizeof(cache_entry);
+          //std::cout<<"34\n"; 
         
-        if(temp->prev )
-         temp->prev->next = temp->next;
+          if(temp->prev )
+            temp->prev->next = temp->next;
+         
+          else
+            head = temp->next;
+         
          //std::cout<<"35\n"; 
          
-        if(temp->next)
-         temp->next->prev = temp->prev; 
-         
+          if(temp->next)
+            temp->next->prev = temp->prev; 
+        
+          else
+            tail = temp->prev;
          
           //std::cout<<"36\n";
-         memory_counter -= temp->entry->bytes+sizeof(cache_entry);
+          
+          memory_counter -= temp->entry->bytes+sizeof(cache_entry);
           //std::cout<<"37\n";
-         map->erase(temp->entry->key);
+          
+          map->erase(temp->entry->key);
           //std::cout<<"38\n";
-         free(temp);
+          
+          free(temp);
           //std::cout<<"39\n";
-        // pop_delta();
-        // delta = get_new_delta();
+         
        }
        
        temp = next_entry;
@@ -269,6 +301,7 @@ static int run_landlord(size_t new_item_size)
    }
 	return 0;	
 }
+
 
 /*
 * Current replacement policy
@@ -324,4 +357,9 @@ int run_replacement(size_t new_item_size)
 	if (curr_policy == LANDLORD)
 		return run_landlord(new_item_size);
 	return -1;
+}
+
+
+void track_misses(std::string key){
+  (*cache_miss_map)[key] = std::time(NULL);
 }

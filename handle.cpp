@@ -3,6 +3,13 @@ static uint64_t generate_cas_unique(void)
 	return (int64_t)rand();
 }
 
+static void set_expiry(cache_entry *entry){
+  if(entry->expiry < 60*60*24*30){
+    if(entry->expiry > 0)
+      entry->expiry += std::time(NULL);
+  }
+}
+
 static void handle_client(int client_sockfd)
 {
 	printf("Client %d connected.\n", client_sockfd);
@@ -41,6 +48,9 @@ static void handle_client(int client_sockfd)
 
 			std::lock_guard<std::mutex> guard(map_mutex);
 			while (key) {
+			        if((*map).count(key) == 0){
+			        	track_misses(key);
+			        }
 				if ((*map).count(key) != 0) {
 					cache_entry *entry = &(*map)[key];
 					write_VALUE(client_sockfd, entry, gets_flag);
@@ -120,7 +130,7 @@ static void handle_client(int client_sockfd)
 			memory_counter -= sizeof(cache_entry);
 
 			/* create new entry */
-			entry = (cache_entry*) malloc(sizeof(cache_entry));
+			entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
 			memory_counter += sizeof(cache_entry);
 			printf("%s: %u\n", "counter", memory_counter);
 			entry->key = key;
@@ -128,7 +138,9 @@ static void handle_client(int client_sockfd)
 			entry->expiry = atoi(expiry);
 			entry->bytes = atoi(bytes);
 			entry->cas_unique = generate_cas_unique();
-
+			
+			set_expiry(entry);
+			
 			entry->data = (char*)malloc(entry->bytes + 2);
 			memory_counter += entry->bytes;
 			memcpy(entry->data, readbuffer, entry->bytes + 2);
@@ -309,6 +321,8 @@ static void handle_client(int client_sockfd)
 				ERROR;
 				continue;
 			}
+			
+			track_misses(key);
 
 			char *flags = strtok(NULL, WHITESPACE);
 			if (!flags) {
@@ -336,10 +350,7 @@ static void handle_client(int client_sockfd)
 			entry->flags = atoi(flags);
 			entry->expiry = atoi(expiry);
 			
-			if(entry->expiry < 60*60*24*30){
-			  if(entry->expiry > 0)
-			    entry->expiry += std::time(NULL);
-			}
+			set_expiry(entry);
 			
 			entry->bytes = atoi(bytes);
 			entry->cas_unique = generate_cas_unique();
@@ -375,9 +386,9 @@ static void handle_client(int client_sockfd)
 			printf("%s: %u\n", "counter", memory_counter);
 			if (memory_counter > MEMORY_THRESHOLD) {
 			        
-			        collect();
+			       // collect();
 			        
-			   if(MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry)))
+			   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry))))
 			   {       
 			          
 				int ret = run_replacement(entry->bytes);

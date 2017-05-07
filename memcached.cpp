@@ -22,7 +22,8 @@ int main(int argc, char **argv)
 	}
 	init_replacement();
 	
-	std::thread collection(trigger_collection);
+	std::thread collection = std::thread(trigger_collection);
+	collection.detach();
 
 	/*
 	* create a TCP socket

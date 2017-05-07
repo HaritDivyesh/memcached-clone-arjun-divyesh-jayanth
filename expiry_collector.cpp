@@ -1,5 +1,6 @@
 static void sweep(node_t *node){
-  std::cout<<"In sweeper";
+  //std::cout<<"In sweeper";
+  std::lock_guard<std::mutex> guard(map_mutex);
   if(node->prev)
     node->prev->next = node->next;
     
@@ -7,7 +8,8 @@ static void sweep(node_t *node){
     node->next->prev = node->prev;
   
   int cleared = node->entry->bytes + sizeof(cache_entry);
-  memory_counter -= cleared;  
+  memory_counter -= cleared; 
+  printf("memory counter after collection %d\n", memory_counter); 
   map->erase(node->entry->key);
   free(node);
   
@@ -16,9 +18,10 @@ static void sweep(node_t *node){
 
 static void collect(){
   node_t *temp = head;
-  std::cout<<"In collector1";
+  //std::cout<<"In collector1";
+  
   while(temp != NULL){
-    std::cout<<"In collector2";
+    //std::cout<<"In collector2";
     node_t *next_node = temp->next;
     time_t current_time = std::time(NULL);
     int cleared = 0;

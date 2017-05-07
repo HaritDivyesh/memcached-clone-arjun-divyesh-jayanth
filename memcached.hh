@@ -73,6 +73,8 @@ static MCMap *map = new MCMap();
 static std::mutex map_mutex;
 static unsigned memory_counter = 0;
 
+static std::map<std::string, long int> *cache_miss_map = new std::map<std::string, long int>();
+
 /*
 * Type for replacement policies
 */
@@ -94,6 +96,7 @@ static node_t *head = NULL;
 static node_t *tail = NULL;
 static size_t list_size = 0;
 static float delta = FLT_MAX; // for current min(credit(entry)/size(entry))
+static std::mutex list_mutex;
 
 /* default value is LRU */
 static policy_t policy = LRU;
