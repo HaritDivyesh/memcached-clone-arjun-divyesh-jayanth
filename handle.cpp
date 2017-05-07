@@ -3,6 +3,25 @@ static uint64_t generate_cas_unique(void)
 	return (int64_t)rand();
 }
 
+static void flush_all(size_t delay)
+{
+	node_t *curr = head;
+	sleep(delay);
+	std::lock_guard<std::mutex> guard(map_mutex);
+	while (curr) {
+		node_t *tmp;
+		cache_entry *entry = curr->entry;
+		free(entry->data);
+		memory_counter -= entry->bytes;
+		map->erase(curr->entry->key);
+		memory_counter -= sizeof(cache_entry);
+		tmp = curr->next;
+		free(curr);
+		curr = tmp;
+	}
+	head = tail = NULL;
+}
+
 static void handle_client(int client_sockfd)
 {
 	printf("Client %d connected.\n", client_sockfd);
@@ -168,6 +187,27 @@ static void handle_client(int client_sockfd)
 			map->erase(key);
 			memory_counter -= sizeof(cache_entry);
 			DELETED;
+			continue;
+		}
+
+		if (strncmp(buffer, "flush_all", 9) == 0) {
+			unsigned error_flag = 0;
+			buffer[strcspn(buffer, "\r\n")] = '\0';
+			size_t delay;
+			char *delay_str = strtok(buffer + strlen("flush_all "), WHITESPACE);
+
+			if (delay_str) {
+				for (int i = 0; i < strlen(delay_str); ++i) {
+					if (!isdigit(delay_str[i])) {
+						error_flag = 1;
+						break;
+					}
+				}
+				delay = error_flag ? 0 : atoi(delay_str);
+			}
+			std::thread flush_all_thread = std::thread(flush_all, delay);
+			flush_all_thread.detach();
+			OK;
 			continue;
 		}
 
