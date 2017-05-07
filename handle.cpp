@@ -182,9 +182,9 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
-		
+	
 			//No check for flags or exp time
-		
+	
 			ssize_t len;
 			char *key = strtok((buffer + strlen("append ")), WHITESPACE);
 			if (!key) {
@@ -203,10 +203,6 @@ static void handle_client(int client_sockfd)
 					cache_entry *entry = &(*map)[key];
 					memset(buffer, 0, sizeof buffer);
 					len = 0;
-				
-					/* Condition depending on prof. response
-					while (len < entry->bytes) {
-					} */
 
 					/* get len to append */
 					len += read(client_sockfd, buffer + len, sizeof buffer - len);
@@ -216,13 +212,6 @@ static void handle_client(int client_sockfd)
 						CLIENT_ERROR("Nothing added to value");
 						continue;
 					}
-
-					/* Condition depending on prof. response
-					if (len > entry->bytes) {
-						free(entry);
-						ERROR;
-						continue;
-					} /*
 
 					/* reassign so that bytes is not greater than len */
 					entry->cas_unique = generate_cas_unique();
@@ -248,10 +237,10 @@ static void handle_client(int client_sockfd)
 					(*map)[entry->key] = *entry;
 					STORED;
 					continue;
-				
+			
 				}
 				key = strtok(NULL, WHITESPACE);
-			}
+				}
 		}
 
 
