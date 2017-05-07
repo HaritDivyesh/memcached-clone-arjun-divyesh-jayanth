@@ -15,6 +15,7 @@
 #include <sstream>
 #include <mutex>
 #include <float.h>
+#include <chrono>
 
 /* Max pending connections queue length*/
 #define MAX_CONNECTIONS 25

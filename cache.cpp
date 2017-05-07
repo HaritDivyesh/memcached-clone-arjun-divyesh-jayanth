@@ -220,7 +220,7 @@ static int run_landlord(size_t new_item_size)
        //std::cout<<"32\n";
        if(temp->cost == 0.0){
        //std::cout<<"33\n";
-         space_cleared += sizeof(temp->entry->bytes)+sizeof(cache_entry);
+         space_cleared += temp->entry->bytes+sizeof(cache_entry);
         //std::cout<<"34\n"; 
         
         if(temp->prev )
@@ -230,10 +230,11 @@ static int run_landlord(size_t new_item_size)
         if(temp->next)
          temp->next->prev = temp->prev; 
          
+         
           //std::cout<<"36\n";
-         map->erase(temp->entry->key);
+         memory_counter -= temp->entry->bytes+sizeof(cache_entry);
           //std::cout<<"37\n";
-         memory_counter -= sizeof(temp->entry->bytes)+sizeof(cache_entry);
+         map->erase(temp->entry->key);
           //std::cout<<"38\n";
          free(temp);
           //std::cout<<"39\n";

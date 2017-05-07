@@ -1,5 +1,6 @@
 #include "memcached.hh"
 #include "cache.cpp"
+#include "expiry_collector.cpp"
 #include "handle.cpp"
 
 int main(int argc, char **argv)
@@ -20,6 +21,8 @@ int main(int argc, char **argv)
 		}
 	}
 	init_replacement();
+	
+	std::thread collection(trigger_collection);
 
 	/*
 	* create a TCP socket

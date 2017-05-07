@@ -179,13 +179,18 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 
-			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
+			cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
 			memory_counter += sizeof(cache_entry);
 			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 			printf("%s: %u\n", "counter", memory_counter);
 			entry->key = key;
 			entry->flags = atoi(flags);
 			entry->expiry = atoi(expiry);
+			
+			if(entry->expiry < 60*60*24*30){
+			  entry->expiry += std::time(NULL);
+			}
+			
 			entry->bytes = atoi(bytes);
 			entry->cas_unique = generate_cas_unique();
 
@@ -218,6 +223,12 @@ static void handle_client(int client_sockfd)
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
 			if (memory_counter > MEMORY_THRESHOLD) {
+			        
+			        collect();
+			        
+			   if(MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry)))
+			   {       
+			          
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
 					free(entry);
@@ -225,6 +236,8 @@ static void handle_client(int client_sockfd)
 					SERVER_ERROR("Out of memory");
 					continue;
 				}
+				
+		           }
 			}
 			add_to_list(entry);
 
