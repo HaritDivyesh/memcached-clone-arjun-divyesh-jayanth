@@ -172,9 +172,128 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "add ", 4) == 0) {
-		
 
-		}
+				ssize_t len;
+				char *key = strtok((buffer + strlen("add ")), WHITESPACE);
+				buffer[strcspn(buffer, "\r\n")] = '\0';
+
+				if (!key) {
+					ERROR;
+					continue;
+				}
+
+				char *flags = strtok(NULL, WHITESPACE);
+				if (!flags) {
+					ERROR;
+					continue;
+				}
+
+				char *expiry = strtok(NULL, WHITESPACE);
+				if (!expiry) {
+					ERROR;
+					continue;
+				}
+
+				char *bytes = strtok(NULL, WHITESPACE);
+				if (!bytes) {
+					ERROR;
+					continue;
+				}
+
+				unsigned gets_flag = 0;
+				if (strncmp(buffer, "gets ", 4) == 0)
+					gets_flag = 1;
+				/* Assert not any arbitrary command beginning with get */
+				if (strncmp(buffer + strlen("get") + gets_flag, " ", 1) != 0) {
+					ERROR;
+					continue;
+				}
+
+				std::lock_guard<std::mutex> guard(map_mutex);
+				while (key) {
+					if ((*map).count(key) != 0) {
+						NOT_STORED;
+						cache_entry *entry = &(*map)[key];	
+						remove_from_list(entry);
+						add_to_list(entry);
+						continue;
+					}
+					else {
+
+						cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
+						memory_counter += sizeof(cache_entry);
+						printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+						printf("%s: %u\n", "counter", memory_counter);
+						entry->key = key;
+						entry->flags = atoi(flags);
+						entry->expiry = atoi(expiry);
+			
+						if(entry->expiry < 60*60*24*30){
+						  if(entry->expiry > 0)
+						    entry->expiry += std::time(NULL);
+						}
+			
+						entry->bytes = atoi(bytes);
+						entry->cas_unique = generate_cas_unique();
+
+						/* Read actual data and add to map*/
+						memset(buffer, 0, sizeof buffer);
+						len = 0;
+						while (len < entry->bytes) {
+							len += read(client_sockfd, buffer + len, sizeof buffer - len);
+						}
+
+						/* 2 is the size of \r\n */
+						len -= 2;
+						if (len < 1) {
+							free(entry);
+							ERROR;
+							CLIENT_ERROR("bad data chunk");
+							continue;
+						}
+						if (len > entry->bytes) {
+							free(entry);
+							ERROR;
+							continue;
+						}
+						/* reassign so that bytes is not greater than len */
+						entry->bytes = (uint32_t)len;
+						entry->data = (char*)malloc(entry->bytes + 2);
+						memory_counter += entry->bytes;
+						memcpy(entry->data, buffer, entry->bytes + 2);
+
+						std::lock_guard<std::mutex> guard(map_mutex);
+						/* CHECK FOR THRESHOLD BREACH */
+						printf("%s: %u\n", "counter", memory_counter);
+						if (memory_counter > MEMORY_THRESHOLD) {
+					
+							collect();
+					
+						   if(MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry)))
+						   {       
+							  
+							int ret = run_replacement(entry->bytes);
+							if (ret) {
+								free(entry);
+								ERROR;
+								SERVER_ERROR("Out of memory");
+								continue;
+							}
+				
+						   }
+						}
+						add_to_list(entry);
+
+						(*map)[entry->key] = *entry;
+						STORED;
+						continue;
+					}
+					key = strtok(NULL, WHITESPACE);
+					}
+					
+				}
+
+
 
 		if (strncmp(buffer, "replace ", 8) == 0) {
 		
