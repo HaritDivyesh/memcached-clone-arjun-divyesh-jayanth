@@ -337,7 +337,8 @@ static void handle_client(int client_sockfd)
 			entry->expiry = atoi(expiry);
 			
 			if(entry->expiry < 60*60*24*30){
-			  entry->expiry += std::time(NULL);
+			  if(entry->expiry > 0)
+			    entry->expiry += std::time(NULL);
 			}
 			
 			entry->bytes = atoi(bytes);
