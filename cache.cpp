@@ -12,13 +12,32 @@ static void add_to_list_lru(cache_entry* entry)
 	if (!head) {
 		node->prev = NULL;
 		head = tail = node;
-		node->cost = entry->bytes;
 		return;
 	}
 	node->prev = tail;
 	tail->next = node;
 	tail = node;
-	node->cost = entry->bytes;
+}
+
+/* this func is also reused for random */
+static void remove_from_list_lru(cache_entry* entry)
+{
+	node_t *tmp = head;
+	while (tmp) {
+		if (tmp->entry == entry) {
+			if (tmp->prev)
+				tmp->prev->next = tmp->next;
+			if (tmp->next)
+				tmp->next->prev = tmp->prev;
+			if (tmp == head)
+				head = tmp->next;
+			if (tmp == tail)
+				tail = tmp->prev;
+			free(tmp);
+			return;
+		}
+		tmp = tmp->next;
+	}
 }
 
 static node_t *pop_lru(void)
@@ -78,7 +97,6 @@ static void add_to_list_random(cache_entry* entry)
 		node->prev = node->next = NULL;
 		head = tail = node;
 		++list_size;
-		node->cost = entry->bytes;
 		return;
 	}
 	rand_index = rand() % list_size;
@@ -93,8 +111,12 @@ static void add_to_list_random(cache_entry* entry)
 	tmp->next = node;
 	if (tmp == tail)
 		tail = node;
-		
-	node->cost = entry->bytes;
+}
+
+static void remove_from_list_random(cache_entry* entry)
+{
+	/* same as lru */
+	remove_from_list_lru(entry);
 }
 
 static node_t *pop_random(void)
@@ -276,6 +298,17 @@ void add_to_list(cache_entry* entry)
 		add_to_list_random(entry);
 	if (curr_policy == LANDLORD)
 		add_to_list_landlord(entry);
+}
+
+void remove_from_list(cache_entry* entry)
+{
+	policy_t curr_policy = get_replacement_policy();
+	if (curr_policy == LRU)
+		remove_from_list_lru(entry);
+	if (curr_policy == RANDOM)
+		remove_from_list_random(entry);
+	/*if (curr_policy == LANDLORD)
+		remove_from_list_landlord(entry);*/
 }
 
 
