@@ -436,19 +436,145 @@ static void handle_client(int client_sockfd)
 		continue;
 		}
 
+		/* TODO: make reusable */
+		if (strncmp(buffer, "incr ", 5) == 0) {
+			cache_entry *entry;
+			char tmpbuffer[CLIENT_BUFFER_SIZE] = {0};
+			char *tmp;
+			int new_val;
+			unsigned error_flag = 0;
+			char *key = strtok(buffer + 4, WHITESPACE);
+			if (!key) {
+				ERROR;
+				continue;
+			}
 
-		if (strncmp(buffer, "incr ", 5) == 0) { 
+			char *delta = strtok(NULL, WHITESPACE);
+			if (!delta) {
+				ERROR;
+				continue;
+			}
 
+			for (int i = 0; i < strlen(delta); ++i) {
+				if (!isdigit(delta[i])) {
+					error_flag = 1;
+					break;
+				}
+			}
 
-		END;
-		continue;
+			#define MAX_DELTA_LEN 19
+			if (error_flag || strlen(delta) > MAX_DELTA_LEN) {
+				CLIENT_ERROR("invalid numeric delta argument");
+				continue;
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+			if ((*map).count(key) == 0) {
+				NOT_FOUND;
+				continue;
+			}
+
+			entry = &(*map)[key];
+			printf("Value is %s\n", entry->data);
+			for (int i = 0; i < entry->bytes; ++i) {
+				/* Negative numbers */
+				if (i == 0 && entry->data[i] == '-')
+					continue;
+				if (!isdigit(entry->data[i])) {
+					error_flag = 1;
+					break;
+				}
+			}
+
+			if (error_flag) {
+				CLIENT_ERROR("cannot increment or decrement non-numeric value");
+				continue;
+			}
+
+			/* check size of val+delta and see if there needs to be a realloc */
+			new_val = atoi(entry->data) + atoi(delta);
+			snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			entry->bytes = strlen(tmpbuffer) - 2;
+			tmp = (char*)realloc(entry->data, entry->bytes + 2);
+			if (!tmp) {
+				ERROR;
+				SERVER_ERROR("Out of memory");
+				continue;
+			}
+			entry->data = tmp;
+			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
+			write(client_sockfd, tmpbuffer, strlen(tmpbuffer));
+			continue;
 		}
 		
 		if (strncmp(buffer, "decr ", 5) == 0) { 
+			cache_entry *entry;
+			char tmpbuffer[CLIENT_BUFFER_SIZE] = {0};
+			char *tmp;
+			int new_val;
+			unsigned error_flag = 0;
+			char *key = strtok(buffer + 4, WHITESPACE);
+			if (!key) {
+				ERROR;
+				continue;
+			}
 
+			char *delta = strtok(NULL, WHITESPACE);
+			if (!delta) {
+				ERROR;
+				continue;
+			}
 
-		END;
-		continue;
+			for (int i = 0; i < strlen(delta); ++i) {
+				if (!isdigit(delta[i])) {
+					error_flag = 1;
+					break;
+				}
+			}
+
+			#define MAX_DELTA_LEN 19
+			if (error_flag || strlen(delta) > MAX_DELTA_LEN) {
+				CLIENT_ERROR("invalid numeric delta argument");
+				continue;
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+			if ((*map).count(key) == 0) {
+				NOT_FOUND;
+				continue;
+			}
+
+			entry = &(*map)[key];
+			printf("Value is %s\n", entry->data);
+			for (int i = 0; i < entry->bytes; ++i) {
+				/* Negative numbers */
+				if (i == 0 && entry->data[i] == '-')
+					continue;
+				if (!isdigit(entry->data[i])) {
+					error_flag = 1;
+					break;
+				}
+			}
+
+			if (error_flag) {
+				CLIENT_ERROR("cannot increment or decrement non-numeric value");
+				continue;
+			}
+
+			/* check size of val+delta and see if there needs to be a realloc */
+			new_val = atoi(entry->data) - atoi(delta);
+			snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			entry->bytes = strlen(tmpbuffer) - 2;
+			tmp = (char*)realloc(entry->data, entry->bytes + 2);
+			if (!tmp) {
+				ERROR;
+				SERVER_ERROR("Out of memory");
+				continue;
+			}
+			entry->data = tmp;
+			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
+			write(client_sockfd, tmpbuffer, strlen(tmpbuffer));
+			continue;
 		}
 
 		if (strncmp(buffer, "stats ", 6) == 0) { 
@@ -555,4 +681,3 @@ static void handle_client(int client_sockfd)
 		ERROR;
 	}
 }
-
