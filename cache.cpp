@@ -19,27 +19,6 @@ static void add_to_list_lru(cache_entry* entry)
 	tail = node;
 }
 
-/* this func is also reused for random */
-static void remove_from_list_lru(cache_entry* entry)
-{
-	node_t *tmp = head;
-	while (tmp) {
-		if (tmp->entry == entry) {
-			if (tmp->prev)
-				tmp->prev->next = tmp->next;
-			if (tmp->next)
-				tmp->next->prev = tmp->prev;
-			if (tmp == head)
-				head = tmp->next;
-			if (tmp == tail)
-				tail = tmp->prev;
-			free(tmp);
-			return;
-		}
-		tmp = tmp->next;
-	}
-}
-
 static node_t *pop_lru(void)
 {
 	node_t* tmp;
@@ -111,12 +90,6 @@ static void add_to_list_random(cache_entry* entry)
 	tmp->next = node;
 	if (tmp == tail)
 		tail = node;
-}
-
-static void remove_from_list_random(cache_entry* entry)
-{
-	/* same as lru */
-	remove_from_list_lru(entry);
 }
 
 static node_t *pop_random(void)
@@ -199,7 +172,7 @@ static int set_cost(cache_entry *entry)
 {
   int res = std::time(NULL) - (*cache_miss_map)[entry->key];
   cache_miss_map->erase(entry->key);
-  printf("entry cost = %d\n", res);
+  //printf("entry cost = %d\n", res);
   return res;
 }
 
@@ -335,13 +308,22 @@ void add_to_list(cache_entry* entry)
 
 void remove_from_list(cache_entry* entry)
 {
-	policy_t curr_policy = get_replacement_policy();
-	if (curr_policy == LRU)
-		remove_from_list_lru(entry);
-	if (curr_policy == RANDOM)
-		remove_from_list_random(entry);
-	/*if (curr_policy == LANDLORD)
-		remove_from_list_landlord(entry);*/
+	node_t *tmp = head;
+	while (tmp) {
+		if (tmp->entry == entry) {
+			if (tmp->prev)
+				tmp->prev->next = tmp->next;
+			if (tmp->next)
+				tmp->next->prev = tmp->prev;
+			if (tmp == head)
+				head = tmp->next;
+			if (tmp == tail)
+				tail = tmp->prev;
+			free(tmp);
+			return;
+		}
+		tmp = tmp->next;
+	}
 }
 
 

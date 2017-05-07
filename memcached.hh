@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <cctype>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -40,6 +41,7 @@
 #define DELETED _WRITER("DELETED")
 #define TOUCHED _WRITER("TOUCHED")
 #define END _WRITER("END")
+#define OK _WRITER("OK")
 #define VERSION _WRITER("VERSION " VERSION_STR)
 
 /*
@@ -100,11 +102,6 @@ static std::mutex list_mutex;
 
 /* default value is LRU */
 static policy_t policy = LRU;
-
-/*void init_replacement(void);
-policy_t get_replacement_policy(void);
-int run_replacement(size_t);
-void add_to_list(cache_entry* entry);*/
 
 static void write_VALUE(int client_sockfd, cache_entry *entry, unsigned gets_flag)
 {
