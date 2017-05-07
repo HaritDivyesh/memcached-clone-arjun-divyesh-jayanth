@@ -22,6 +22,7 @@ static void collect(){
     node_t *next_node = temp->next;
     time_t current_time = std::time(NULL);
     int cleared = 0;
+
     if(temp->entry->expiry <= current_time && temp->entry->expiry != 0)
       sweep(temp);
       
@@ -33,7 +34,9 @@ static void collect(){
 
 static void trigger_collection(){
   while(1){
+
     std::this_thread::sleep_for (std::chrono::seconds(5));
+
     collect();
   }
 }
