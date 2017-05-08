@@ -253,15 +253,6 @@ static void handle_client(int client_sockfd)
 					ERROR;
 					continue;
 				}
-
-				unsigned gets_flag = 0;
-				if (strncmp(buffer, "gets ", 4) == 0)
-					gets_flag = 1;
-				/* Assert not any arbitrary command beginning with get */
-				if (strncmp(buffer + strlen("get") + gets_flag, " ", 1) != 0) {
-					ERROR;
-					continue;
-				}
 				
 				std::lock_guard<std::mutex> guard(map_mutex);
 					if ((*map).count(key) != 0) {
@@ -348,53 +339,58 @@ static void handle_client(int client_sockfd)
 		if (strncmp(buffer, "replace ", 8) == 0) {
 		
 			//Currently Error
+			printf("In starting");
 			ssize_t len;
 			char *key = strtok((buffer + strlen("replace ")), WHITESPACE);
 			buffer[strcspn(buffer, "\r\n")] = '\0';
 
 			if (!key) {
 				ERROR;
+				printf("In key");
 				continue;
 			}
 
 			char *flags = strtok(NULL, WHITESPACE);
 			if (!flags) {
 				ERROR;
+				printf("In flags");
 				continue;
 			}
 
 			char *expiry = strtok(NULL, WHITESPACE);
 			if (!expiry) {
 				ERROR;
+				printf("In expiry");
 				continue;
 			}
 
 			char *bytes = strtok(NULL, WHITESPACE);
 			if (!bytes) {
 				ERROR;
+				printf("In bytes");
 				continue;
 			}
 
-			unsigned gets_flag = 0;
-			if (strncmp(buffer, "gets ", 4) == 0)
-				gets_flag = 1;
-			/* Assert not any arbitrary command beginning with get */
-			if (strncmp(buffer + strlen("get") + gets_flag, " ", 1) != 0) {
-				ERROR;
-				continue;
-			}
-
+			printf("Before condn");
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) != 0) {
 		
-				cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));//(
+				printf("In SET condtion");
+				cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
+				if (!entry) {
+						//free(entry);
+						ERROR;
+						SERVER_ERROR("Out of memory");
+						continue;
+					}
 				memory_counter += sizeof(cache_entry);
 				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 				printf("%s: %u\n", "counter", memory_counter);
+				//printf("key %s %d %d\n",key,atoi(flags),atoi(expiry));
 				entry->key = key;
 				entry->flags = atoi(flags);
 				entry->expiry = atoi(expiry);
-
+				printf("Beech ka SET condtion");
 				set_expiry(entry);
 
 				entry->bytes = atoi(bytes);
@@ -406,18 +402,20 @@ static void handle_client(int client_sockfd)
 				while (len < entry->bytes) {
 					len += read(client_sockfd, buffer + len, sizeof buffer - len);
 				}
-
+				printf("Baad ka SET condtion");
 				/* 2 is the size of \r\n */
 				len -= 2;
 				if (len < 1) {
 					free(entry);
 					ERROR;
+					printf("In zero");
 					CLIENT_ERROR("bad data chunk");
 					continue;
 				}
 				if (len > entry->bytes) {
 					free(entry);
 					ERROR;
+					printf("In greater");
 					continue;
 				}
 				/* reassign so that bytes is not greater than len */
@@ -425,10 +423,12 @@ static void handle_client(int client_sockfd)
 				entry->data = (char*)malloc(entry->bytes + 2);
 				memory_counter += entry->bytes;
 				memcpy(entry->data, buffer, entry->bytes + 2);
-
+				printf("Just before FURTHER SET condtion");
 				//std::lock_guard<std::mutex> guard(map_mutex);
 				/* CHECK FOR THRESHOLD BREACH */
 				printf("%s: %u\n", "counter", memory_counter);
+
+				printf("FURTHER SET");
 				if (memory_counter > MEMORY_THRESHOLD) {
 
 				       // collect();
@@ -447,7 +447,7 @@ static void handle_client(int client_sockfd)
 				   }
 				}
 				add_to_list(entry);
-
+				printf("In End of set");
 				(*map)[entry->key] = *entry;
 				STORED;
 				continue;
@@ -457,14 +457,15 @@ static void handle_client(int client_sockfd)
 			
 			else {
 				NOT_STORED;
+				printf("In ELSE");
 				continue;
 		}		
-
+				printf("AT THE END");
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
 	
-			//No check for flags or exp time
+			/*FAULTY, NEEDS CHECKING*/
 	
 			ssize_t len;
 			char *key = strtok((buffer + strlen("append ")), WHITESPACE);
@@ -478,8 +479,6 @@ static void handle_client(int client_sockfd)
 				ERROR;
 				continue;
 			}
-
-			while (key) {
 				if ((*map).count(key) != 0) {
 					cache_entry *entry = &(*map)[key];
 					memset(buffer, 0, sizeof buffer);
@@ -497,7 +496,7 @@ static void handle_client(int client_sockfd)
 					/* reassign so that bytes is not greater than len */
 					entry->cas_unique = generate_cas_unique();
 					entry->bytes = (uint32_t)len + entry->bytes;
-					entry->data = (char*) realloc(entry->data, entry->bytes);
+					entry->data = (char*) realloc(entry->data, entry->bytes + 2);
 					memory_counter += entry->bytes;
 					memcpy(entry->data + entry->bytes, buffer, entry->bytes + 2);
 
@@ -520,18 +519,16 @@ static void handle_client(int client_sockfd)
 					continue;
 			
 				}
-				key = strtok(NULL, WHITESPACE);
-				}
 		}
 
 
 
 		if (strncmp(buffer, "prepend ", 8) == 0) { 
 		
-			//No check for flags or exp time
+			/*FAULTY, NEEDS CHECKING*/			
 	
 			ssize_t len;
-			char *key = strtok((buffer + strlen("append ")), WHITESPACE);
+			char *key = strtok((buffer + strlen("prepend ")), WHITESPACE);
 			if (!key) {
 				ERROR;
 				continue;
@@ -543,7 +540,6 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 
-			while (key) {
 				if ((*map).count(key) != 0) {
 					cache_entry *entry = &(*map)[key];
 					memset(buffer, 0, sizeof buffer);
@@ -560,12 +556,11 @@ static void handle_client(int client_sockfd)
 					char * temp;
 					/* reassign so that bytes is not greater than len */
 					entry->cas_unique = generate_cas_unique();
-					entry->bytes = entry->bytes + (uint32_t)len;
-					temp = (char*) realloc(entry->data, entry->bytes);
-					memory_counter += entry->bytes;
-					memmove(temp,entry->data, entry->bytes);
-					entry->data = temp;
-					memcpy(entry->bytes + entry->data, buffer, entry->bytes + 2);
+					//entry->bytes = entry->bytes + (uint32_t)len;
+					temp = (char*) realloc(entry->data, entry->bytes + (uint32_t)len + 2);
+					memory_counter += entry->bytes + (uint32_t)len;
+					memmove(temp,buffer, atoi(bytes));
+					memcpy(temp + atoi(bytes), entry->data, entry->bytes + 2);
 
 					std::lock_guard<std::mutex> guard(map_mutex);
 					/* CHECK FOR THRESHOLD BREACH */
@@ -586,9 +581,6 @@ static void handle_client(int client_sockfd)
 					continue;
 			
 				}
-				key = strtok(NULL, WHITESPACE);
-				}
-
 		}
 
 		if (strncmp(buffer, "gets ", 5) == 0) { 
@@ -772,7 +764,7 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 
-			cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
+			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry)); //new cache_entry()
 			memory_counter += sizeof(cache_entry);
 			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 			printf("%s: %u\n", "counter", memory_counter);
