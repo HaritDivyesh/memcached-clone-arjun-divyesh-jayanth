@@ -74,12 +74,10 @@ static void handle_client(int client_sockfd)
 
 			std::lock_guard<std::mutex> guard(map_mutex);
 			while (key) {
-			        if((*map).count(key) == 0){
-			        	track_misses(key);
-			        	process_stats->get_misses++;
-			        }
-			        
-				if ((*map).count(key) != 0) {
+				if ((*map).count(key) == 0) {
+					track_misses(key);
+					process_stats->get_misses++;
+				} else {
 					process_stats->get_hits++;
 					cache_entry *entry = &(*map)[key];
 					write_VALUE(client_sockfd, entry, gets_flag);
@@ -375,9 +373,8 @@ static void handle_client(int client_sockfd)
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) != 0) {
 	
-			cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
+			cache_entry *entry = new cache_entry();
 			if (!entry) {
-					//free(entry);
 					ERROR;
 					SERVER_ERROR("Out of memory");
 					continue;
