@@ -11,6 +11,17 @@ static void set_expiry(cache_entry *entry){
 	}
 }
 
+static int validate_num(char *str)
+{
+        int  i = 0;
+	for(; str[i] != '\0' && isdigit(str[i]); i++);
+
+	if(i == strlen(str))
+		return 0;
+		
+	return 1;
+}
+
 static void flush_all(size_t delay)
 {
 	node_t *curr = head;
@@ -166,9 +177,40 @@ static void handle_client(int client_sockfd)
 			memory_counter += sizeof(cache_entry);
 			printf("%s: %u\n", "counter", memory_counter);
 			entry->key = key;
-			entry->flags = atoi(flags);
+			
+			if(validate_num(flags) == 0){
+				entry->flags = atoi(flags);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
+			char *exp_temp = expiry;
+			if(expiry[0] == '-')
+				exp_temp = expiry+1;
+				 
+			if(validate_num(exp_temp) == 0){
+				entry->expiry = atoi(exp_temp);
+				
+				if(expiry[0] == '-')
+					entry->expiry = -(entry->expiry);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
 			entry->expiry = atoi(expiry);
-			entry->bytes = atoi(bytes);
+			
+			if(validate_num(bytes) == 0){
+				entry->bytes = atoi(bytes);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
 			entry->cas_unique = generate_cas_unique();
 			
 			set_expiry(entry);
@@ -285,12 +327,41 @@ static void handle_client(int client_sockfd)
 				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 				printf("%s: %u\n", "counter", memory_counter);
 				entry->key = key;
-				entry->flags = atoi(flags);
+				
+				if(validate_num(flags) == 0){
+					entry->flags = atoi(flags);
+				}
+				else{
+					CLIENT_ERROR("bad command line format");
+					continue;
+				}
+			
+				char *exp_temp = expiry;
+				if(expiry[0] == '-')
+					exp_temp = expiry+1;
+				 
+				if(validate_num(exp_temp) == 0){
+					entry->expiry = atoi(exp_temp);
+				
+					if(expiry[0] == '-')
+						entry->expiry = -(entry->expiry);
+				}
+				else{
+					CLIENT_ERROR("bad command line format");
+					continue;
+				}
+				
 				entry->expiry = atoi(expiry);
 
 				set_expiry(entry);
 
-				entry->bytes = atoi(bytes);
+				if(validate_num(bytes) == 0){
+					entry->bytes = atoi(bytes);
+				}
+				else{
+					CLIENT_ERROR("bad command line format");
+					continue;
+				}
 				entry->cas_unique = generate_cas_unique();
 
 				/* Read actual data and add to map*/
@@ -355,20 +426,23 @@ static void handle_client(int client_sockfd)
 			}
 
 			char *flags = strtok(NULL, WHITESPACE);
-			if (!flags) {
+			if (!flags || validate_num(flags)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
 			char *expiry = strtok(NULL, WHITESPACE);
-			if (!expiry) {
+			if (!expiry || validate_num(expiry)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
 			char *bytes = strtok(NULL, WHITESPACE);
-			if (!bytes) {
+			if (!bytes || validate_num(bytes)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
@@ -867,12 +941,41 @@ static void handle_client(int client_sockfd)
 			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 			printf("%s: %u\n", "counter", memory_counter);
 			entry->key = key;
-			entry->flags = atoi(flags);
+			
+			if(validate_num(flags) == 0){
+				entry->flags = atoi(flags);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
+			char *exp_temp = expiry;
+			if(expiry[0] == '-')
+				exp_temp = expiry+1;
+				 
+			if(validate_num(exp_temp) == 0){
+				entry->expiry = atoi(exp_temp);
+				
+				if(expiry[0] == '-')
+					entry->expiry = -(entry->expiry);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
 			entry->expiry = atoi(expiry);
 			
 			set_expiry(entry);
 			
-			entry->bytes = atoi(bytes);
+			if(validate_num(bytes) == 0){
+				entry->bytes = atoi(bytes);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
 			entry->cas_unique = generate_cas_unique();
 
 			/* Read actual data and add to map*/
@@ -916,6 +1019,12 @@ static void handle_client(int client_sockfd)
 					continue;
 				}
 			}
+			
+			if(entry->expiry < 0){
+				STORED;
+				continue;
+			}
+			
 			add_to_list(entry);
 
 			(*map)[entry->key] = *entry;

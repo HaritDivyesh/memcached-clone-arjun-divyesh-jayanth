@@ -148,18 +148,7 @@ static float get_new_delta()
 {
 //return the new minimum from cost map
 
-  float min = FLT_MAX;
-  /*while(temp != NULL){
-       node_t *next_entry = temp->next;
-       //std::cout<<"2\n";
-       float fraction = (float)temp->cost/temp->entry->bytes;
-       if(fraction <= min){
-         min = fraction;
-       }
-       
-       temp = next_entry;
-     }  */
-  
+  float min = FLT_MAX; 
   min = (float)head->cost/head->entry->bytes;
   
   return min;
@@ -172,8 +161,11 @@ static void init_landlord(void)
 
 static int set_cost(cache_entry *entry)
 {
-  int res = std::time(NULL) - (*cache_miss_map)[entry->key];
-  cache_miss_map->erase(entry->key);
+  int res = 0;
+  if((*cache_miss_map).count(entry->key) > 0){
+    res = std::time(NULL) - (*cache_miss_map)[entry->key];
+    cache_miss_map->erase(entry->key); 
+  }
   //printf("entry cost = %d\n", res);
   return res;
 }
@@ -189,6 +181,7 @@ static void add_to_list_landlord(cache_entry* entry)
 		node->prev = NULL;
 		head = tail = node;
 		node->cost = entry->bytes;
+		node->cost = set_cost(entry);
 		return;
 	}
 	node_t *temp = head;
