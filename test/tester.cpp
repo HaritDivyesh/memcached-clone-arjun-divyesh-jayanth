@@ -13,8 +13,8 @@
 #define GENERATED_RESULT_BUFF_SIZE 1024*1024
 #define COMMENT_BEGINNER '#'
 
-#define INPUT_FILE "input/basic.txt"
-#define EXPECTED_OUTPUT_FILE "expected_output/basic.txt"
+#define INPUT_FILE "test/input/basic.txt"
+#define EXPECTED_OUTPUT_FILE "test/expected_output/basic.txt"
 
 void compare(char *generated)
 {
