@@ -1,0 +1,17 @@
+flush_all
+OK
+get key
+END
+set key 1 0 2
+hi
+STORED
+set mykey 1 0 3
+hey
+STORED
+flush_all
+OK
+get key mykey
+END
+version
+VERSION 0.0.1
+quit
