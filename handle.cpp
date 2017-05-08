@@ -54,9 +54,9 @@ static void handle_client(int client_sockfd)
 		}
 
 		/* get and gets */
-		if (strncmp(buffer, "get", 3) == 0) {
+		if (strncmp(buffer, "get", strlen("get")) == 0) {
 			unsigned gets_flag = 0;
-			if (strncmp(buffer, "gets ", 4) == 0)
+			if (strncmp(buffer, "gets ", strlen("gets ")) == 0)
 				gets_flag = 1;
 			/* Assert not any arbitrary command beginning with get */
 			if (strncmp(buffer + strlen("get") + gets_flag, " ", 1) != 0) {
@@ -263,7 +263,6 @@ static void handle_client(int client_sockfd)
 					continue;
 				}
 				
-				int count = 0;
 				std::lock_guard<std::mutex> guard(map_mutex);
 					if ((*map).count(key) != 0) {
 
@@ -276,70 +275,70 @@ static void handle_client(int client_sockfd)
 						
 					else {
 
-					cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
-								memory_counter += sizeof(cache_entry);
-								printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-								printf("%s: %u\n", "counter", memory_counter);
-								entry->key = key;
-								entry->flags = atoi(flags);
-								entry->expiry = atoi(expiry);
+						cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
+						memory_counter += sizeof(cache_entry);
+						printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+						printf("%s: %u\n", "counter", memory_counter);
+						entry->key = key;
+						entry->flags = atoi(flags);
+						entry->expiry = atoi(expiry);
 
-								set_expiry(entry);
+						set_expiry(entry);
 
-								entry->bytes = atoi(bytes);
-								entry->cas_unique = generate_cas_unique();
+						entry->bytes = atoi(bytes);
+						entry->cas_unique = generate_cas_unique();
 
-								/* Read actual data and add to map*/
-								memset(buffer, 0, sizeof buffer);
-								len = 0;
-								while (len < entry->bytes) {
-									len += read(client_sockfd, buffer + len, sizeof buffer - len);
-								}
+						/* Read actual data and add to map*/
+						memset(buffer, 0, sizeof buffer);
+						len = 0;
+						while (len < entry->bytes) {
+							len += read(client_sockfd, buffer + len, sizeof buffer - len);
+						}
 
-								/* 2 is the size of \r\n */
-								len -= 2;
-								if (len < 1) {
-									free(entry);
-									ERROR;
-									CLIENT_ERROR("bad data chunk");
-									continue;
-								}
-								if (len > entry->bytes) {
-									free(entry);
-									ERROR;
-									continue;
-								}
-								/* reassign so that bytes is not greater than len */
-								entry->bytes = (uint32_t)len;
-								entry->data = (char*)malloc(entry->bytes + 2);
-								memory_counter += entry->bytes;
-								memcpy(entry->data, buffer, entry->bytes + 2);
+						/* 2 is the size of \r\n */
+						len -= 2;
+						if (len < 1) {
+							free(entry);
+							ERROR;
+							CLIENT_ERROR("bad data chunk");
+							continue;
+						}
+						if (len > entry->bytes) {
+							free(entry);
+							ERROR;
+							continue;
+						}
+						/* reassign so that bytes is not greater than len */
+						entry->bytes = (uint32_t)len;
+						entry->data = (char*)malloc(entry->bytes + 2);
+						memory_counter += entry->bytes;
+						memcpy(entry->data, buffer, entry->bytes + 2);
 
-								//std::lock_guard<std::mutex> guard(map_mutex);
-								/* CHECK FOR THRESHOLD BREACH */
-								printf("%s: %u\n", "counter", memory_counter);
-								if (memory_counter > MEMORY_THRESHOLD) {
+						//std::lock_guard<std::mutex> guard(map_mutex);
+						/* CHECK FOR THRESHOLD BREACH */
+						printf("%s: %u\n", "counter", memory_counter);
+						if (memory_counter > MEMORY_THRESHOLD) {
 
-								       // collect();
+						       // collect();
 
-								   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry))))
-								   {
+						   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry))))
+						   {
 
-									int ret = run_replacement(entry->bytes);
-									if (ret) {
-										free(entry);
-										ERROR;
-										SERVER_ERROR("Out of memory");
-										continue;
-									}
-
-							           }
-								}
-								add_to_list(entry);
-
-								(*map)[entry->key] = *entry;
-								STORED;
+							int ret = run_replacement(entry->bytes);
+							if (ret) {
+								free(entry);
+								ERROR;
+								SERVER_ERROR("Out of memory");
 								continue;
+							}
+
+					           }
+						}
+						add_to_list(entry);
+
+						(*map)[entry->key] = *entry;
+						STORED;
+						continue;
 
 				}
 		}
@@ -348,7 +347,119 @@ static void handle_client(int client_sockfd)
 
 		if (strncmp(buffer, "replace ", 8) == 0) {
 		
+			//Currently Error
+			ssize_t len;
+			char *key = strtok((buffer + strlen("replace ")), WHITESPACE);
+			buffer[strcspn(buffer, "\r\n")] = '\0';
+
+			if (!key) {
+				ERROR;
+				continue;
+			}
+
+			char *flags = strtok(NULL, WHITESPACE);
+			if (!flags) {
+				ERROR;
+				continue;
+			}
+
+			char *expiry = strtok(NULL, WHITESPACE);
+			if (!expiry) {
+				ERROR;
+				continue;
+			}
+
+			char *bytes = strtok(NULL, WHITESPACE);
+			if (!bytes) {
+				ERROR;
+				continue;
+			}
+
+			unsigned gets_flag = 0;
+			if (strncmp(buffer, "gets ", 4) == 0)
+				gets_flag = 1;
+			/* Assert not any arbitrary command beginning with get */
+			if (strncmp(buffer + strlen("get") + gets_flag, " ", 1) != 0) {
+				ERROR;
+				continue;
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+			if ((*map).count(key) != 0) {
 		
+				cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));//(
+				memory_counter += sizeof(cache_entry);
+				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+				printf("%s: %u\n", "counter", memory_counter);
+				entry->key = key;
+				entry->flags = atoi(flags);
+				entry->expiry = atoi(expiry);
+
+				set_expiry(entry);
+
+				entry->bytes = atoi(bytes);
+				entry->cas_unique = generate_cas_unique();
+
+				/* Read actual data and add to map*/
+				memset(buffer, 0, sizeof buffer);
+				len = 0;
+				while (len < entry->bytes) {
+					len += read(client_sockfd, buffer + len, sizeof buffer - len);
+				}
+
+				/* 2 is the size of \r\n */
+				len -= 2;
+				if (len < 1) {
+					free(entry);
+					ERROR;
+					CLIENT_ERROR("bad data chunk");
+					continue;
+				}
+				if (len > entry->bytes) {
+					free(entry);
+					ERROR;
+					continue;
+				}
+				/* reassign so that bytes is not greater than len */
+				entry->bytes = (uint32_t)len;
+				entry->data = (char*)malloc(entry->bytes + 2);
+				memory_counter += entry->bytes;
+				memcpy(entry->data, buffer, entry->bytes + 2);
+
+				//std::lock_guard<std::mutex> guard(map_mutex);
+				/* CHECK FOR THRESHOLD BREACH */
+				printf("%s: %u\n", "counter", memory_counter);
+				if (memory_counter > MEMORY_THRESHOLD) {
+
+				       // collect();
+
+				   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry))))
+				   {
+
+					int ret = run_replacement(entry->bytes);
+					if (ret) {
+						free(entry);
+						ERROR;
+						SERVER_ERROR("Out of memory");
+						continue;
+					}
+
+				   }
+				}
+				add_to_list(entry);
+
+				(*map)[entry->key] = *entry;
+				STORED;
+				continue;
+
+		
+			}
+			
+			else {
+				NOT_STORED;
+				continue;
+		}		
+
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
