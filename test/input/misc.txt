@@ -1,0 +1,18 @@
+1
+flush_all
+1
+get key
+2
+set key 1 0 2
+hi
+2
+set mykey 1 0 3
+hey
+1
+flush_all
+1
+get key mykey
+1
+version
+1
+quit
