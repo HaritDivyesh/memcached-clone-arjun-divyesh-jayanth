@@ -423,10 +423,12 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "replace ", 8) == 0) {
-			
+			/* replace means: set if the key already exists, else NOT_STORED */
 			ssize_t len;
 			char *key = strtok((buffer + strlen("replace ")), WHITESPACE);
 			buffer[strcspn(buffer, "\r\n")] = '\0';
+			char readbuffer[CLIENT_BUFFER_SIZE] = {0};
+			cache_entry *entry;
 
 			if (!key) {
 				ERROR;
@@ -434,128 +436,88 @@ static void handle_client(int client_sockfd)
 			}
 
 			char *flags = strtok(NULL, WHITESPACE);
-			if (!flags) {
+			if (!flags || validate_num(flags)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
 			char *expiry = strtok(NULL, WHITESPACE);
-			if (!expiry) {
+			if (!expiry || validate_num(expiry)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
 			char *bytes = strtok(NULL, WHITESPACE);
-			if (!bytes) {
+			if (!bytes || validate_num(bytes)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
 			std::lock_guard<std::mutex> guard(map_mutex);
-			if ((*map).count(key) != 0) {
-	
-			cache_entry *entry = new cache_entry();
-			if (!entry) {
-					ERROR;
-					SERVER_ERROR("Out of memory");
-					continue;
-				}
-			
-			
-			if(validate_num(flags) == 0){
-				entry->flags = atoi(flags);
-			}
-			else{
-				CLIENT_ERROR("bad command line format");
-				continue;
-			}
-			
-			char *exp_temp = expiry;
-			if(expiry[0] == '-')
-				exp_temp = expiry+1;
-				 
-			if(validate_num(exp_temp) == 0){
-				entry->expiry = atoi(exp_temp);
-				
-				if(expiry[0] == '-')
-					entry->expiry = -(entry->expiry);
-			}
-			else{
-				CLIENT_ERROR("bad command line format");
-				continue;
-			}
-			
-			
-			set_expiry(entry);
 
-			if(validate_num(bytes) == 0){
-				entry->bytes = atoi(bytes);
-			}
-			else{
-				CLIENT_ERROR("bad command line format");
-				continue;
-			}
-			
-			
-			if(entry->bytes > 0 && entry->expiry >= 0)
-				memory_counter += sizeof(cache_entry);
-			
-			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-			printf("%s: %u\n", "counter", memory_counter);
-			entry->key = key;
-			//entry->flags = atoi(flags);
-			
-			
-			entry->cas_unique = generate_cas_unique();
-
-			/* Read actual data and add to map*/
-			memset(buffer, 0, sizeof buffer);
 			len = 0;
-			while (len < entry->bytes) {
-				len += read(client_sockfd, buffer + len, sizeof buffer - len);
+			while (len < atoi(bytes)) {
+				len += read(client_sockfd, readbuffer + len, sizeof readbuffer - len);
 			}
+
+			if ((*map).count(key) == 0) {
+				NOT_STORED;
+				continue;
+			}
+
+			entry = &(*map)[key];
 
 			/* 2 is the size of \r\n */
 			len -= 2;
-			if (len < 1) {
-				free(entry);
+			if (len < 1 || len > atoi(bytes)) {
 				ERROR;
 				CLIENT_ERROR("bad data chunk");
 				continue;
 			}
-			if (len > entry->bytes) {
-				free(entry);
-				ERROR;
-				continue;
-			}
-			/* reassign so that bytes is not greater than len */
-			entry->bytes = (uint32_t)len;
+
+			/* delete the key */
+			free(entry->data);
+			memory_counter -= entry->bytes;
+			remove_from_list(entry);
+			map->erase(key);
+			memory_counter -= sizeof(cache_entry);
+
+			/* create new entry */
+			entry = new cache_entry();
+			memory_counter += sizeof(cache_entry);
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			entry->flags = atoi(flags);
+			entry->expiry = atoi(expiry);
+			entry->bytes = atoi(bytes);
+			entry->cas_unique = generate_cas_unique();
+
+			set_expiry(entry);
+
 			entry->data = (char*)malloc(entry->bytes + 2);
 			memory_counter += entry->bytes;
-			memcpy(entry->data, buffer, entry->bytes + 2);
-			//std::lock_guard<std::mutex> guard(map_mutex);
+			memcpy(entry->data, readbuffer, entry->bytes + 2);
+
+
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
-
-				if (memory_counter > memory_limit) {
-					int ret = run_replacement(entry->bytes);
-					if (ret) {
-						free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
-					}
+			if (memory_counter > memory_limit) {
+				int ret = run_replacement(entry->bytes);
+				if (ret) {
+					free(entry);
+					ERROR;
+					SERVER_ERROR("Out of memory");
+					continue;
 				}
-				add_to_list(entry);
-				(*map)[entry->key] = *entry;
-				STORED;
-				continue;
 			}
-			
-			else {
-				NOT_STORED;
-				continue;
-			}		
+			add_to_list(entry);
+
+			(*map)[entry->key] = *entry;
+			STORED;
+			continue;	
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {

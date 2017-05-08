@@ -1,0 +1,18 @@
+flush_all
+OK
+set mykey 1 0 2
+hi
+STORED
+decr mykey 3
+CLIENT_ERROR cannot increment or decrement non-numeric value
+set key 1 0 2
+50
+STORED
+decr key 5
+55
+set key 1 0 2
+99
+STORED
+decr key -5
+CLIENT_ERROR invalid numeric delta argument
+quit

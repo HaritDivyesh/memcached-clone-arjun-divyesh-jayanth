@@ -1,0 +1,19 @@
+1
+flush_all
+2
+set mykey 1 0 2
+hi
+1
+decr mykey 3
+2
+set key 1 0 2
+50
+1
+decr key 5
+2
+set key 1 0 2
+99
+1
+decr key -5
+1
+quit
