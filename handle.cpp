@@ -205,9 +205,9 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "flush_all", 9) == 0) {
-			unsigned error_flag = 0;
 			buffer[strcspn(buffer, "\r\n")] = '\0';
-			size_t delay;
+			unsigned error_flag = 0;
+			size_t delay = 0;
 			char *delay_str = strtok(buffer + strlen("flush_all "), WHITESPACE);
 
 			if (delay_str) {
