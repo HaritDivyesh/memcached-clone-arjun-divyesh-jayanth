@@ -941,6 +941,7 @@ static void handle_client(int client_sockfd)
 			if (len > entry->bytes) {
 				free(entry);
 				ERROR;
+				CLIENT_ERROR("bad data chunk");
 				continue;
 			}
 			/* reassign so that bytes is not greater than len */
