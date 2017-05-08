@@ -24,9 +24,6 @@
 #define MAX_CONNECTIONS 25
 #define CLIENT_BUFFER_SIZE 1024
 #define MEMCACHED_PORT 11211
-/* 1 MB */
-/* #define MEMORY_THRESHOLD 1048576 */
-#define MEMORY_THRESHOLD 250
 #define WHITESPACE " \t\n\v\f\r"
 
 #define _WRITER(X){\
@@ -78,6 +75,7 @@ typedef std::map<std::string, cache_entry> MCMap;
 static MCMap *map = new MCMap();
 static std::mutex map_mutex;
 static unsigned memory_counter = 0;
+static size_t memory_limit;
 
 static std::map<std::string, long int> *cache_miss_map = new std::map<std::string, long int>();
 
@@ -142,7 +140,7 @@ typedef struct{
   int64_t reclaimed = 0;
   int64_t bytes_read = 0;
   int64_t bytes_written = 0;
-  int32_t limit_maxbytes = MEMORY_THRESHOLD;
+  int32_t limit_maxbytes = memory_limit;
   int32_t threads = 0; 
 } stats;
 

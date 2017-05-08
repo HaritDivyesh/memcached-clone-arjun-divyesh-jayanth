@@ -181,7 +181,7 @@ static void handle_client(int client_sockfd)
 
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
-			if (memory_counter > MEMORY_THRESHOLD) {
+			if (memory_counter > memory_limit) {
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
 					free(entry);
@@ -326,16 +326,13 @@ static void handle_client(int client_sockfd)
 				//std::lock_guard<std::mutex> guard(map_mutex);
 				/* CHECK FOR THRESHOLD BREACH */
 				printf("%s: %u\n", "counter", memory_counter);
-				if (memory_counter > MEMORY_THRESHOLD) {
-					// collect();
-					if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
-						int ret = run_replacement(entry->bytes);
-						if (ret) {
-							free(entry);
-							ERROR;
-							SERVER_ERROR("Out of memory");
-							continue;
-						}
+				if (memory_counter > memory_limit) {
+					int ret = run_replacement(entry->bytes);
+					if (ret) {
+						free(entry);
+						ERROR;
+						SERVER_ERROR("Out of memory");
+						continue;
 					}
 				}
 				add_to_list(entry);
@@ -425,16 +422,13 @@ static void handle_client(int client_sockfd)
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
 
-				if (memory_counter > MEMORY_THRESHOLD) {
-					// collect();
-					if (memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
-						int ret = run_replacement(entry->bytes);
-						if (ret) {
-							free(entry);
-							ERROR;
-							SERVER_ERROR("Out of memory");
-							continue;
-						}
+				if (memory_counter > memory_limit) {
+					int ret = run_replacement(entry->bytes);
+					if (ret) {
+						free(entry);
+						ERROR;
+						SERVER_ERROR("Out of memory");
+						continue;
 					}
 				}
 				add_to_list(entry);
@@ -493,7 +487,7 @@ static void handle_client(int client_sockfd)
 				std::lock_guard<std::mutex> guard(map_mutex);
 				/* CHECK FOR THRESHOLD BREACH */
 				printf("%s: %u\n", "counter", memory_counter);
-				if (memory_counter > MEMORY_THRESHOLD) {
+				if (memory_counter > memory_limit) {
 					int ret = run_replacement(entry->bytes);
 					if (ret) {
 						free(entry);
@@ -556,7 +550,7 @@ static void handle_client(int client_sockfd)
 				std::lock_guard<std::mutex> guard(map_mutex);
 				/* CHECK FOR THRESHOLD BREACH */
 				printf("%s: %u\n", "counter", memory_counter);
-				if (memory_counter > MEMORY_THRESHOLD) {
+				if (memory_counter > memory_limit) {
 					int ret = run_replacement(entry->bytes);
 					if (ret) {
 						free(entry);
@@ -920,16 +914,13 @@ static void handle_client(int client_sockfd)
 			std::lock_guard<std::mutex> guard(map_mutex);
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
-			if (memory_counter > MEMORY_THRESHOLD) {
-				// collect();
-				if (memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
-					int ret = run_replacement(entry->bytes);
-					if (ret) {
-						free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
-					}
+			if (memory_counter > memory_limit) {
+				int ret = run_replacement(entry->bytes);
+				if (ret) {
+					free(entry);
+					ERROR;
+					SERVER_ERROR("Out of memory");
+					continue;
 				}
 			}
 			add_to_list(entry);
