@@ -5,10 +5,10 @@ static uint64_t generate_cas_unique(void)
 
 
 static void set_expiry(cache_entry *entry){
-  if(entry->expiry < 60*60*24*30){
-    if(entry->expiry > 0)
-      entry->expiry += std::time(NULL);
-  }
+	if (entry->expiry < 60*60*24*30) {
+		if(entry->expiry > 0)
+			entry->expiry += std::time(NULL);
+	}
 }
 
 static void flush_all(size_t delay)
@@ -245,173 +245,51 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "add ", 4) == 0) {
-
-				ssize_t len;
-				char *key = strtok((buffer + strlen("add ")), WHITESPACE);
-				buffer[strcspn(buffer, "\r\n")] = '\0';
-
-				if (!key) {
-					ERROR;
-					continue;
-				}
-
-				char *flags = strtok(NULL, WHITESPACE);
-				if (!flags) {
-					ERROR;
-					continue;
-				}
-
-				char *expiry = strtok(NULL, WHITESPACE);
-				if (!expiry) {
-					ERROR;
-					continue;
-				}
-
-				char *bytes = strtok(NULL, WHITESPACE);
-				if (!bytes) {
-					ERROR;
-					continue;
-				}
-				
-				std::lock_guard<std::mutex> guard(map_mutex);
-					if ((*map).count(key) != 0) {
-
-						NOT_STORED;
-						cache_entry *entry = &(*map)[key];
-						remove_from_list(entry);
-						add_to_list(entry);
-						continue;
-					}
-						
-					else {
-
-						cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
-						memory_counter += sizeof(cache_entry);
-						printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-						printf("%s: %u\n", "counter", memory_counter);
-						entry->key = key;
-						entry->flags = atoi(flags);
-						entry->expiry = atoi(expiry);
-
-						set_expiry(entry);
-
-						entry->bytes = atoi(bytes);
-						entry->cas_unique = generate_cas_unique();
-
-						/* Read actual data and add to map*/
-						memset(buffer, 0, sizeof buffer);
-						len = 0;
-						while (len < entry->bytes) {
-							len += read(client_sockfd, buffer + len, sizeof buffer - len);
-							
-						}
-						process_stats->bytes_read += len;
-
-						/* 2 is the size of \r\n */
-						len -= 2;
-						if (len < 1) {
-							free(entry);
-							ERROR;
-							CLIENT_ERROR("bad data chunk");
-							continue;
-						}
-						if (len > entry->bytes) {
-							free(entry);
-							ERROR;
-							continue;
-						}
-						/* reassign so that bytes is not greater than len */
-						entry->bytes = (uint32_t)len;
-						entry->data = (char*)malloc(entry->bytes + 2);
-						memory_counter += entry->bytes;
-						memcpy(entry->data, buffer, entry->bytes + 2);
-
-						//std::lock_guard<std::mutex> guard(map_mutex);
-						/* CHECK FOR THRESHOLD BREACH */
-						printf("%s: %u\n", "counter", memory_counter);
-						if (memory_counter > MEMORY_THRESHOLD) {
-
-						       // collect();
-
-						   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry))))
-						   {
-
-							int ret = run_replacement(entry->bytes);
-							if (ret) {
-								free(entry);
-								ERROR;
-								SERVER_ERROR("Out of memory");
-								continue;
-							}
-
-					           }
-						}
-						add_to_list(entry);
-
-						(*map)[entry->key] = *entry;
-						STORED;
-						continue;
-
-				}
-		}
-
-
-
-		if (strncmp(buffer, "replace ", 8) == 0) {
-		
-			//Currently Error
-			printf("In starting");
 			ssize_t len;
-			char *key = strtok((buffer + strlen("replace ")), WHITESPACE);
+			char *key = strtok((buffer + strlen("add ")), WHITESPACE);
 			buffer[strcspn(buffer, "\r\n")] = '\0';
 
 			if (!key) {
 				ERROR;
-				printf("In key");
 				continue;
 			}
 
 			char *flags = strtok(NULL, WHITESPACE);
 			if (!flags) {
 				ERROR;
-				printf("In flags");
 				continue;
 			}
 
 			char *expiry = strtok(NULL, WHITESPACE);
 			if (!expiry) {
 				ERROR;
-				printf("In expiry");
 				continue;
 			}
 
 			char *bytes = strtok(NULL, WHITESPACE);
 			if (!bytes) {
 				ERROR;
-				printf("In bytes");
 				continue;
 			}
-
-			printf("Before condn");
+			
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) != 0) {
-		
-				printf("In SET condtion");
-				cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
-				if (!entry) {
-						//free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
-					}
+				NOT_STORED;
+				cache_entry *entry = &(*map)[key];
+				remove_from_list(entry);
+				add_to_list(entry);
+				continue;
+			}
+	
+			else {
+				cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
 				memory_counter += sizeof(cache_entry);
 				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 				printf("%s: %u\n", "counter", memory_counter);
-				//printf("key %s %d %d\n",key,atoi(flags),atoi(expiry));
 				entry->key = key;
 				entry->flags = atoi(flags);
 				entry->expiry = atoi(expiry);
-				printf("Beech ka SET condtion");
+
 				set_expiry(entry);
 
 				entry->bytes = atoi(bytes);
@@ -422,21 +300,21 @@ static void handle_client(int client_sockfd)
 				len = 0;
 				while (len < entry->bytes) {
 					len += read(client_sockfd, buffer + len, sizeof buffer - len);
+					
 				}
-				printf("Baad ka SET condtion");
+				process_stats->bytes_read += len;
+
 				/* 2 is the size of \r\n */
 				len -= 2;
 				if (len < 1) {
 					free(entry);
 					ERROR;
-					printf("In zero");
 					CLIENT_ERROR("bad data chunk");
 					continue;
 				}
 				if (len > entry->bytes) {
 					free(entry);
 					ERROR;
-					printf("In greater");
 					continue;
 				}
 				/* reassign so that bytes is not greater than len */
@@ -444,50 +322,135 @@ static void handle_client(int client_sockfd)
 				entry->data = (char*)malloc(entry->bytes + 2);
 				memory_counter += entry->bytes;
 				memcpy(entry->data, buffer, entry->bytes + 2);
-				printf("Just before FURTHER SET condtion");
+
 				//std::lock_guard<std::mutex> guard(map_mutex);
 				/* CHECK FOR THRESHOLD BREACH */
 				printf("%s: %u\n", "counter", memory_counter);
-
-				printf("FURTHER SET");
 				if (memory_counter > MEMORY_THRESHOLD) {
-
-				       // collect();
-
-				   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry))))
-				   {
-
-					int ret = run_replacement(entry->bytes);
-					if (ret) {
-						free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
+					// collect();
+					if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
+						int ret = run_replacement(entry->bytes);
+						if (ret) {
+							free(entry);
+							ERROR;
+							SERVER_ERROR("Out of memory");
+							continue;
+						}
 					}
-
-				   }
 				}
 				add_to_list(entry);
-				printf("In End of set");
+
 				(*map)[entry->key] = *entry;
 				STORED;
 				continue;
+			}
+		}
 
-		
+		if (strncmp(buffer, "replace ", 8) == 0) {
+			
+			ssize_t len;
+			char *key = strtok((buffer + strlen("replace ")), WHITESPACE);
+			buffer[strcspn(buffer, "\r\n")] = '\0';
+
+			if (!key) {
+				ERROR;
+				continue;
+			}
+
+			char *flags = strtok(NULL, WHITESPACE);
+			if (!flags) {
+				ERROR;
+				continue;
+			}
+
+			char *expiry = strtok(NULL, WHITESPACE);
+			if (!expiry) {
+				ERROR;
+				continue;
+			}
+
+			char *bytes = strtok(NULL, WHITESPACE);
+			if (!bytes) {
+				ERROR;
+				continue;
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+			if ((*map).count(key) != 0) {
+	
+			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
+			if (!entry) {
+					//free(entry);
+					ERROR;
+					SERVER_ERROR("Out of memory");
+					continue;
+				}
+			memory_counter += sizeof(cache_entry);
+			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			entry->flags = atoi(flags);
+			entry->expiry = atoi(expiry);
+			set_expiry(entry);
+
+			entry->bytes = atoi(bytes);
+			entry->cas_unique = generate_cas_unique();
+
+			/* Read actual data and add to map*/
+			memset(buffer, 0, sizeof buffer);
+			len = 0;
+			while (len < entry->bytes) {
+				len += read(client_sockfd, buffer + len, sizeof buffer - len);
+			}
+
+			/* 2 is the size of \r\n */
+			len -= 2;
+			if (len < 1) {
+				free(entry);
+				ERROR;
+				CLIENT_ERROR("bad data chunk");
+				continue;
+			}
+			if (len > entry->bytes) {
+				free(entry);
+				ERROR;
+				continue;
+			}
+			/* reassign so that bytes is not greater than len */
+			entry->bytes = (uint32_t)len;
+			entry->data = (char*)malloc(entry->bytes + 2);
+			memory_counter += entry->bytes;
+			memcpy(entry->data, buffer, entry->bytes + 2);
+			//std::lock_guard<std::mutex> guard(map_mutex);
+			/* CHECK FOR THRESHOLD BREACH */
+			printf("%s: %u\n", "counter", memory_counter);
+
+				if (memory_counter > MEMORY_THRESHOLD) {
+					// collect();
+					if (memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
+						int ret = run_replacement(entry->bytes);
+						if (ret) {
+							free(entry);
+							ERROR;
+							SERVER_ERROR("Out of memory");
+							continue;
+						}
+					}
+				}
+				add_to_list(entry);
+				(*map)[entry->key] = *entry;
+				STORED;
+				continue;
 			}
 			
 			else {
 				NOT_STORED;
-				printf("In ELSE");
 				continue;
-		}		
-				printf("AT THE END");
+			}		
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
-	
-			/*RESOLVED*/
-	
+			/* resolved */
 			ssize_t len;
 			char *key = strtok((buffer + strlen("append ")), WHITESPACE);
 			if (!key) {
@@ -500,60 +463,59 @@ static void handle_client(int client_sockfd)
 				ERROR;
 				continue;
 			}
-				if ((*map).count(key) != 0) {
-					cache_entry *entry = &(*map)[key];
-					memset(buffer, 0, sizeof buffer);
-					len = 0;
+			if ((*map).count(key) != 0) {
+				cache_entry *entry = &(*map)[key];
+				memset(buffer, 0, sizeof buffer);
+				len = 0;
 
-					/* get len to append */
-					len += read(client_sockfd, buffer + len, sizeof buffer - len);
-					process_stats->bytes_read += len;
-					len -= 2;
-					if (len < 1) {
+				/* get len to append */
+				len = read(client_sockfd, buffer + len, sizeof buffer - len);
+				process_stats->bytes_read += len;
+				len -= 2;
+				if (len < 1) {
+					ERROR;
+					CLIENT_ERROR("Nothing added to value");
+					continue;
+				}
+
+				/* reassign so that bytes is not greater than len */
+				
+				entry->cas_unique = generate_cas_unique();
+				size_t orig_end = entry->bytes;
+				entry->bytes = len + entry->bytes;
+				
+				
+				entry->data = (char*) realloc(entry->data, entry->bytes + 2);
+				memory_counter += len;
+				
+				memcpy(entry->data + orig_end, buffer, entry->bytes + 2);
+
+				std::lock_guard<std::mutex> guard(map_mutex);
+				/* CHECK FOR THRESHOLD BREACH */
+				printf("%s: %u\n", "counter", memory_counter);
+				if (memory_counter > MEMORY_THRESHOLD) {
+					int ret = run_replacement(entry->bytes);
+					if (ret) {
+						free(entry);
 						ERROR;
-						CLIENT_ERROR("Nothing added to value");
+						SERVER_ERROR("Out of memory");
 						continue;
 					}
-
-					/* reassign so that bytes is not greater than len */
-					
-					entry->cas_unique = generate_cas_unique();
-					int orig_end = entry->bytes;
-					entry->bytes = (uint32_t)len + entry->bytes;
-					
-					
-					entry->data = (char*) realloc(entry->data, entry->bytes + 2);
-					memory_counter += entry->bytes;
-					
-					memcpy(entry->data + orig_end, buffer, entry->bytes + 2);
-
-					std::lock_guard<std::mutex> guard(map_mutex);
-					/* CHECK FOR THRESHOLD BREACH */
-					printf("%s: %u\n", "counter", memory_counter);
-					if (memory_counter > MEMORY_THRESHOLD) {
-						int ret = run_replacement(entry->bytes);
-						if (ret) {
-							free(entry);
-							ERROR;
-							SERVER_ERROR("Out of memory");
-							continue;
-						}
-					}
-					add_to_list(entry);
-
-					(*map)[entry->key] = *entry;
-					STORED;
-					continue;
-			
 				}
+				add_to_list(entry);
+
+				(*map)[entry->key] = *entry;
+				STORED;
+				continue;
+			}
+			NOT_STORED;
+			continue;
 		}
 
 
 
-		if (strncmp(buffer, "prepend ", 8) == 0) { 
-		
+		if (strncmp(buffer, "prepend ", 8) == 0) {
 			/*RESOLVED*/			
-	
 			ssize_t len;
 			char *key = strtok((buffer + strlen("prepend ")), WHITESPACE);
 			if (!key) {
@@ -567,49 +529,50 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 
-				if ((*map).count(key) != 0) {
-					cache_entry *entry = &(*map)[key];
-					memset(buffer, 0, sizeof buffer);
-					len = read(client_sockfd, buffer, sizeof buffer);
-					process_stats->bytes_read += len;
-					len -= 2;
-					if (len < 1) {
+			if ((*map).count(key) != 0) {
+				cache_entry *entry = &(*map)[key];
+				memset(buffer, 0, sizeof buffer);
+				len = read(client_sockfd, buffer, sizeof buffer);
+				process_stats->bytes_read += len;
+				len -= 2;
+				if (len < 1) {
+					ERROR;
+					CLIENT_ERROR("Nothing added to value");
+					continue;
+				}
+				char * temp;
+				/* reassign so that bytes is not greater than len */
+				entry->cas_unique = generate_cas_unique();
+				
+				temp = (char*) realloc(entry->data, entry->bytes + (uint32_t)len + 2);
+				
+				int orig_bytes = entry->bytes;
+				entry->bytes += len;
+				
+				memory_counter += entry->bytes + (uint32_t)len;
+				memmove(temp+len, temp, orig_bytes+2);
+				memcpy(temp, buffer, len);
+				
+				std::lock_guard<std::mutex> guard(map_mutex);
+				/* CHECK FOR THRESHOLD BREACH */
+				printf("%s: %u\n", "counter", memory_counter);
+				if (memory_counter > MEMORY_THRESHOLD) {
+					int ret = run_replacement(entry->bytes);
+					if (ret) {
+						free(entry);
 						ERROR;
-						CLIENT_ERROR("Nothing added to value");
+						SERVER_ERROR("Out of memory");
 						continue;
 					}
-					char * temp;
-					/* reassign so that bytes is not greater than len */
-					entry->cas_unique = generate_cas_unique();
-					
-					temp = (char*) realloc(entry->data, entry->bytes + (uint32_t)len + 2);
-					
-					int orig_bytes = entry->bytes;
-					entry->bytes += len;
-					
-					memory_counter += entry->bytes + (uint32_t)len;
-					memmove(temp+len, temp, orig_bytes+2);
-					memcpy(temp, buffer, len);
-					
-					std::lock_guard<std::mutex> guard(map_mutex);
-					/* CHECK FOR THRESHOLD BREACH */
-					printf("%s: %u\n", "counter", memory_counter);
-					if (memory_counter > MEMORY_THRESHOLD) {
-						int ret = run_replacement(entry->bytes);
-						if (ret) {
-							free(entry);
-							ERROR;
-							SERVER_ERROR("Out of memory");
-							continue;
-						}
-					}
-					add_to_list(entry);
-
-					(*map)[entry->key] = *entry;
-					STORED;
-					continue;
-			
 				}
+				add_to_list(entry);
+
+				(*map)[entry->key] = *entry;
+				STORED;
+				continue;
+			}
+			NOT_STORED;
+			continue;
 		}
 
 		
@@ -672,6 +635,7 @@ static void handle_client(int client_sockfd)
 			/* check size of val+delta and see if there needs to be a realloc */
 			new_val = atoi(entry->data) + atoi(delta);
 			snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			size_t orig_size = entry->bytes;
 			entry->bytes = strlen(tmpbuffer) - 2;
 			tmp = (char*)realloc(entry->data, entry->bytes + 2);
 			if (!tmp) {
@@ -679,6 +643,7 @@ static void handle_client(int client_sockfd)
 				SERVER_ERROR("Out of memory");
 				continue;
 			}
+			memory_counter += (entry->bytes - orig_size);
 			process_stats->incr_hits++;
 			entry->data = tmp;
 			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
@@ -745,6 +710,7 @@ static void handle_client(int client_sockfd)
 			/* check size of val+delta and see if there needs to be a realloc */
 			new_val = atoi(entry->data) - atoi(delta);
 			snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			size_t orig_size = entry->bytes;
 			entry->bytes = strlen(tmpbuffer) - 2;
 			tmp = (char*)realloc(entry->data, entry->bytes + 2);
 			if (!tmp) {
@@ -752,6 +718,7 @@ static void handle_client(int client_sockfd)
 				SERVER_ERROR("Out of memory");
 				continue;
 			}
+			memory_counter += (entry->bytes - orig_size);
 			process_stats->decr_hits++;
 			entry->data = tmp;
 			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
@@ -761,120 +728,120 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "stats", 5) == 0) {
-		  char tmpbuffer[50];
-		  //char *info = std::strcat("pid ", itoa (process_stats.pid, buf, 10)); 
-		  //snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
-		  //printf("%d %d\n", process_stats->pid, getpid());
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT pid %d\r\n", process_stats->pid);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT uptime %d\r\n", (std::time(NULL)-process_stats->start_time));
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT time %ld\r\n", std::time(NULL));
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT version %s\r\n", process_stats->version);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT pointer_size %d\r\n", process_stats->pointer_size);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT curr_items %d\r\n", process_stats->curr_items);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT total_items %d\r\n", process_stats->total_items);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT curr_connections %d\r\n", process_stats->curr_connections);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT total_connections %d\r\n", process_stats->total_connections);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_get %ld\r\n", process_stats->cmd_get);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_set %ld\r\n", process_stats->cmd_set);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_flush %ld\r\n", process_stats->cmd_flush);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT get_hits %ld\r\n", process_stats->get_hits);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT get_misses %ld\r\n", process_stats->get_misses);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT delete_misses %ld\r\n", process_stats->delete_misses);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT delete_hits %ld\r\n", process_stats->delete_hits);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT incr_misses %ld\r\n", process_stats->incr_misses);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT incr_hits %ld\r\n", process_stats->incr_hits);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT decr_misses %ld\r\n", process_stats->decr_misses);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT decr_hits %ld\r\n", process_stats->decr_hits);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_misses %ld\r\n", process_stats->cas_misses);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_hits %ld\r\n", process_stats->cas_hits);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_badval %ld\r\n", process_stats->cas_badval);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT evictions %ld\r\n", process_stats->evictions);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT bytes_read %ld\r\n", process_stats->bytes_read);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT bytes_written %ld\r\n", process_stats->bytes_written);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT limit_maxbytes %d\r\n", process_stats->limit_maxbytes);
-		  STAT(tmpbuffer);
-		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
-		  
-		  END;
-		  continue;
+			char tmpbuffer[50];
+			//char *info = std::strcat("pid ", itoa (process_stats.pid, buf, 10)); 
+			//snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			//printf("%d %d\n", process_stats->pid, getpid());
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT pid %d\r\n", process_stats->pid);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT uptime %ld\r\n", (std::time(NULL)-process_stats->start_time));
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT time %ld\r\n", std::time(NULL));
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT version %s\r\n", process_stats->version);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT pointer_size %d\r\n", process_stats->pointer_size);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT curr_items %d\r\n", process_stats->curr_items);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT total_items %d\r\n", process_stats->total_items);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT curr_connections %d\r\n", process_stats->curr_connections);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT total_connections %d\r\n", process_stats->total_connections);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_get %lld\r\n", process_stats->cmd_get);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_set %lld\r\n", process_stats->cmd_set);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_flush %lld\r\n", process_stats->cmd_flush);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT get_hits %lld\r\n", process_stats->get_hits);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT get_misses %lld\r\n", process_stats->get_misses);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT delete_misses %lld\r\n", process_stats->delete_misses);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT delete_hits %lld\r\n", process_stats->delete_hits);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT incr_misses %lld\r\n", process_stats->incr_misses);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT incr_hits %lld\r\n", process_stats->incr_hits);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT decr_misses %lld\r\n", process_stats->decr_misses);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT decr_hits %lld\r\n", process_stats->decr_hits);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_misses %lld\r\n", process_stats->cas_misses);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_hits %lld\r\n", process_stats->cas_hits);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_badval %lld\r\n", process_stats->cas_badval);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT evictions %lld\r\n", process_stats->evictions);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT bytes_read %lld\r\n", process_stats->bytes_read);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT bytes_written %lld\r\n", process_stats->bytes_written);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			snprintf(tmpbuffer, sizeof tmpbuffer, "STAT limit_maxbytes %d\r\n", process_stats->limit_maxbytes);
+			STAT(tmpbuffer);
+			memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+
+			END;
+			continue;
 
 		}
 				
@@ -941,6 +908,7 @@ static void handle_client(int client_sockfd)
 			if (len > entry->bytes) {
 				free(entry);
 				ERROR;
+				CLIENT_ERROR("bad data chunk");
 				continue;
 			}
 			/* reassign so that bytes is not greater than len */
@@ -953,21 +921,16 @@ static void handle_client(int client_sockfd)
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
 			if (memory_counter > MEMORY_THRESHOLD) {
-			        
-			       // collect();
-			        
-			   if(memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry))))
-			   {       
-			          
-				int ret = run_replacement(entry->bytes);
-				if (ret) {
-					free(entry);
-					ERROR;
-					SERVER_ERROR("Out of memory");
-					continue;
+				// collect();
+				if (memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD - memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
+					int ret = run_replacement(entry->bytes);
+					if (ret) {
+						free(entry);
+						ERROR;
+						SERVER_ERROR("Out of memory");
+						continue;
+					}
 				}
-				
-		           }
 			}
 			add_to_list(entry);
 
