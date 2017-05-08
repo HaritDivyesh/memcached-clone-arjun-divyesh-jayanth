@@ -6,6 +6,7 @@ run_bg:
 	./memcached&
 
 runtests: all tests run_bg
-	./test/tester
+	./test/tester test/input/basic.txt test/expected_output/basic.txt
+
 all:
 	$(CC) -std=c++11 -Wall -g -pthread memcached.cpp -o memcached

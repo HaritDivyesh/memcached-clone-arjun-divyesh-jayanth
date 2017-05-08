@@ -13,17 +13,14 @@
 #define GENERATED_RESULT_BUFF_SIZE 1024*1024
 #define COMMENT_BEGINNER '#'
 
-#define INPUT_FILE "test/input/basic.txt"
-#define EXPECTED_OUTPUT_FILE "test/expected_output/basic.txt"
-
-void compare(char *generated)
+void compare(char *generated, char *expected_values_file, char *input_file)
 {
 	char expected_line[BUFFER_SIZE] = {0};
 	unsigned line_number = 0;
 	char *generated_line;
-	FILE* fp = fopen(EXPECTED_OUTPUT_FILE, "r");
+	FILE* fp = fopen(expected_values_file, "r");
 	if (!fp) {
-		fprintf(stderr, "Could not open expected output file: %s\n", EXPECTED_OUTPUT_FILE);
+		fprintf(stderr, "Could not open expected output file: %s\n", expected_values_file);
 		exit(1);
 	}
 
@@ -57,15 +54,15 @@ void compare(char *generated)
  		}*/
 	}
 
-	printf("[TEST SUCCESS] for %s\n", INPUT_FILE);
+	printf("[TEST SUCCESS] for %s\n", input_file);
 	return;
 error:
 	fprintf(stderr, "[TEST FAILURE] Generated output not matching %s:%u\n",
-		EXPECTED_OUTPUT_FILE, line_number);
+		expected_values_file, line_number);
  	exit(1);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	int sockfd;
 	struct sockaddr_in server_addr;
@@ -73,6 +70,15 @@ int main(void)
 	char buffer[BUFFER_SIZE] = {0};
 	char *generated_result = (char*)malloc(GENERATED_RESULT_BUFF_SIZE);
 	memset(generated_result, 0, GENERATED_RESULT_BUFF_SIZE);
+	char input_file[128];
+	char expected_values_file[128];
+
+	if (argc < 3) {
+		fprintf(stderr, "%s\n", "usage: tester <input_file> <output_file_with_expected_values>");
+		exit(1);
+	}
+	memcpy(input_file, argv[1], sizeof input_file);
+	memcpy(expected_values_file, argv[2], sizeof expected_values_file);
 
 	/*
 	* create a TCP socket
@@ -86,10 +92,10 @@ int main(void)
 	/* Connect to the memcached server */
 	connect(sockfd, (struct sockaddr*) &server_addr, sizeof server_addr);
 
-	//const char *file = INPUT_FILE;
-	FILE* fp = fopen(INPUT_FILE, "r");
+	//const char *file = input_file;
+	FILE* fp = fopen(input_file, "r");
 	if (!fp) {
-		fprintf(stderr, "Could not open input file: %s\n", INPUT_FILE);
+		fprintf(stderr, "Could not open input file: %s\n", input_file);
 		exit(1);
 	}
 
@@ -138,16 +144,16 @@ int main(void)
 			strncmp(buffer, "CLIENT_ERROR", strlen("CLIENT_ERROR")) == 0 ||
 			strncmp(buffer, "SERVER_ERROR", strlen("SERVER_ERROR")) == 0) {
 			fprintf(stderr, "[TEST FAILURE] for %s:%u, received reply:\n%s\n",
-				INPUT_FILE, line_number, buffer);
+				input_file, line_number, buffer);
 			exit(1);
 		}
 		memset(buffer, 0, sizeof buffer);
  	}
 
- 	compare(generated_result);
+ 	compare(generated_result, expected_values_file, input_file);
  	fclose(fp);
  	return 0;
  error:
- 	fprintf(stderr, "Error in input file: %s:%u\n", INPUT_FILE, line_number);
+ 	fprintf(stderr, "Error in input file: %s:%u\n", input_file, line_number);
  	exit(1);
 }
