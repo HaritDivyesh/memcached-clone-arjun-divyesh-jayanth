@@ -174,9 +174,6 @@ static void handle_client(int client_sockfd)
 
 			/* create new entry */
 			entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
-			memory_counter += sizeof(cache_entry);
-			printf("%s: %u\n", "counter", memory_counter);
-			entry->key = key;
 			
 			if(validate_num(flags) == 0){
 				entry->flags = atoi(flags);
@@ -201,7 +198,7 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 			
-			entry->expiry = atoi(expiry);
+			
 			
 			if(validate_num(bytes) == 0){
 				entry->bytes = atoi(bytes);
@@ -210,6 +207,14 @@ static void handle_client(int client_sockfd)
 				CLIENT_ERROR("bad command line format");
 				continue;
 			}
+			
+			if(entry->bytes > 0 && entry->expiry >= 0)
+				memory_counter += sizeof(cache_entry);
+			
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			
+			
 			
 			entry->cas_unique = generate_cas_unique();
 			
@@ -323,10 +328,6 @@ static void handle_client(int client_sockfd)
 	
 			else {
 				cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
-				memory_counter += sizeof(cache_entry);
-				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-				printf("%s: %u\n", "counter", memory_counter);
-				entry->key = key;
 				
 				if(validate_num(flags) == 0){
 					entry->flags = atoi(flags);
@@ -351,7 +352,7 @@ static void handle_client(int client_sockfd)
 					continue;
 				}
 				
-				entry->expiry = atoi(expiry);
+				
 
 				set_expiry(entry);
 
@@ -362,6 +363,15 @@ static void handle_client(int client_sockfd)
 					CLIENT_ERROR("bad command line format");
 					continue;
 				}
+				
+				if(entry->bytes > 0 && entry->expiry >= 0)
+					memory_counter += sizeof(cache_entry);
+				
+				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+				printf("%s: %u\n", "counter", memory_counter);
+				entry->key = key;
+				
+				
 				entry->cas_unique = generate_cas_unique();
 
 				/* Read actual data and add to map*/
@@ -450,11 +460,7 @@ static void handle_client(int client_sockfd)
 					SERVER_ERROR("Out of memory");
 					continue;
 				}
-			memory_counter += sizeof(cache_entry);
-			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-			printf("%s: %u\n", "counter", memory_counter);
-			entry->key = key;
-			//entry->flags = atoi(flags);
+			
 			
 			if(validate_num(flags) == 0){
 				entry->flags = atoi(flags);
@@ -479,7 +485,7 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 			
-			entry->expiry = atoi(expiry);
+			
 			set_expiry(entry);
 
 			if(validate_num(bytes) == 0){
@@ -489,6 +495,17 @@ static void handle_client(int client_sockfd)
 				CLIENT_ERROR("bad command line format");
 				continue;
 			}
+			
+			
+			if(entry->bytes > 0 && entry->expiry >= 0)
+				memory_counter += sizeof(cache_entry);
+			
+			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			//entry->flags = atoi(flags);
+			
+			
 			entry->cas_unique = generate_cas_unique();
 
 			/* Read actual data and add to map*/
@@ -968,10 +985,6 @@ static void handle_client(int client_sockfd)
 			}
 
 			cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry)); //new cache_entry()
-			memory_counter += sizeof(cache_entry);
-			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-			printf("%s: %u\n", "counter", memory_counter);
-			entry->key = key;
 			
 			if(validate_num(flags) == 0){
 				entry->flags = atoi(flags);
@@ -990,13 +1003,15 @@ static void handle_client(int client_sockfd)
 				
 				if(expiry[0] == '-')
 					entry->expiry = -(entry->expiry);
+					
+				printf("expiry time = %d\n", entry->expiry);
 			}
 			else{
 				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 			
-			entry->expiry = atoi(expiry);
+			
 			
 			set_expiry(entry);
 			
@@ -1007,6 +1022,15 @@ static void handle_client(int client_sockfd)
 				CLIENT_ERROR("bad command line format");
 				continue;
 			}
+			
+			if(entry->bytes > 0 && entry->expiry >= 0)
+				memory_counter += sizeof(cache_entry);
+			
+			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			
+			
 			entry->cas_unique = generate_cas_unique();
 
 			/* Read actual data and add to map*/
@@ -1035,7 +1059,8 @@ static void handle_client(int client_sockfd)
 			/* reassign so that bytes is not greater than len */
 			entry->bytes = (uint32_t)len;
 			entry->data = (char*)malloc(entry->bytes + 2);
-			memory_counter += entry->bytes;
+			if(entry->bytes > 0 && entry->expiry >= 0)
+				memory_counter += entry->bytes;
 			memcpy(entry->data, buffer, entry->bytes + 2);
 
 			std::lock_guard<std::mutex> guard(map_mutex);
