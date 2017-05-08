@@ -506,7 +506,7 @@ static void handle_client(int client_sockfd)
 					len = 0;
 
 					/* get len to append */
-					len += read(client_sockfd, buffer + len, sizeof buffer - len);
+					len = read(client_sockfd, buffer + len, sizeof buffer - len);
 					process_stats->bytes_read += len;
 					len -= 2;
 					if (len < 1) {
@@ -518,12 +518,12 @@ static void handle_client(int client_sockfd)
 					/* reassign so that bytes is not greater than len */
 					
 					entry->cas_unique = generate_cas_unique();
-					int orig_end = entry->bytes;
-					entry->bytes = (uint32_t)len + entry->bytes;
+					size_t orig_end = entry->bytes;
+					entry->bytes = len + entry->bytes;
 					
 					
 					entry->data = (char*) realloc(entry->data, entry->bytes + 2);
-					memory_counter += entry->bytes;
+					memory_counter += len;
 					
 					memcpy(entry->data + orig_end, buffer, entry->bytes + 2);
 
@@ -672,6 +672,7 @@ static void handle_client(int client_sockfd)
 			/* check size of val+delta and see if there needs to be a realloc */
 			new_val = atoi(entry->data) + atoi(delta);
 			snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			size_t orig_size = entry->bytes;
 			entry->bytes = strlen(tmpbuffer) - 2;
 			tmp = (char*)realloc(entry->data, entry->bytes + 2);
 			if (!tmp) {
@@ -679,6 +680,7 @@ static void handle_client(int client_sockfd)
 				SERVER_ERROR("Out of memory");
 				continue;
 			}
+			memory_counter += (entry->bytes - orig_size);
 			process_stats->incr_hits++;
 			entry->data = tmp;
 			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
@@ -745,6 +747,7 @@ static void handle_client(int client_sockfd)
 			/* check size of val+delta and see if there needs to be a realloc */
 			new_val = atoi(entry->data) - atoi(delta);
 			snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+			size_t orig_size = entry->bytes;
 			entry->bytes = strlen(tmpbuffer) - 2;
 			tmp = (char*)realloc(entry->data, entry->bytes + 2);
 			if (!tmp) {
@@ -752,6 +755,7 @@ static void handle_client(int client_sockfd)
 				SERVER_ERROR("Out of memory");
 				continue;
 			}
+			memory_counter += (entry->bytes - orig_size);
 			process_stats->decr_hits++;
 			entry->data = tmp;
 			memcpy(entry->data, tmpbuffer, entry->bytes + 2);

@@ -113,7 +113,7 @@ typedef struct{
   int32_t start_time = std::time(NULL); //for calculation of uptime
   int32_t uptime;
   int32_t time;
-  char *version = VERSION_STR;
+  const char *version = VERSION_STR;
   int32_t pointer_size = sizeof(uintptr_t)*8;
   int32_t rusage_user;
   int32_t rusage_system;
@@ -158,7 +158,7 @@ static void write_VALUE(int client_sockfd, cache_entry *entry, unsigned gets_fla
 	write(client_sockfd, os.str().c_str(), strlen(os.str().c_str()));
 }
 
-static void print_map(MCMap *map)
+/*static void print_map(MCMap *map)
 {
 	for (const auto &p : *map) {
 		std::cout << "map[" << p.first << "] = ";
@@ -167,7 +167,7 @@ static void print_map(MCMap *map)
 		std::cout << p.second.expiry << ", ";
 		std::cout << p.second.bytes << '\n';
 	}
-}
+}*/
 
 
 #endif
