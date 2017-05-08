@@ -147,7 +147,6 @@ static float get_new_delta()
 {
 //return the new minimum from cost map
 
-  node_t *temp = head;
   float min = FLT_MAX;
   /*while(temp != NULL){
        node_t *next_entry = temp->next;

@@ -25,7 +25,6 @@ static void collect(){
     //std::cout<<"In collector2";
     node_t *next_node = temp->next;
     time_t current_time = std::time(NULL);
-    int cleared = 0;
 
     if(temp->entry->expiry <= current_time && temp->entry->expiry != 0)
       sweep(temp);
