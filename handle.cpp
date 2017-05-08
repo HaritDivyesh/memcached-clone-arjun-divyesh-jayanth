@@ -848,7 +848,7 @@ static void handle_client(int client_sockfd)
 				continue;
 			}
 			
-			track_misses(key);
+			
 
 			char *flags = strtok(NULL, WHITESPACE);
 			if (!flags) {

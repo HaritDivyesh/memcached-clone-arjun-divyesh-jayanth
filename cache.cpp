@@ -44,6 +44,7 @@ static int run_lru(size_t new_item_size)
 		if (!poped)
 			return -1;
 		printf("%s\n", "popped valid node");
+		std::cout<<"poped key: "<<poped->entry->key<< " poped value: "<< poped->entry->data<< " poped bytes: "<<poped->entry->bytes;
 		poped_size += poped->entry->bytes;
 		printf("poped size: %lu\n", poped_size);
 		free(poped->entry->data);
@@ -227,7 +228,7 @@ static int run_landlord(size_t new_item_size)
    while( space_cleared < new_item_size )
    {
      node_t *temp = head;
-     //std::cout<<"1\n";
+     std::cout<<"Running landlord\n";
      delta = get_new_delta();
      while(temp != NULL)
      {

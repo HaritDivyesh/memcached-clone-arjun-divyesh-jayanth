@@ -1,11 +1,15 @@
 static void sweep(node_t *node){
   //std::cout<<"In sweeper";
   std::lock_guard<std::mutex> guard(map_mutex);
-  if(node->prev)
+  if(node->prev != NULL)
     node->prev->next = node->next;
+  else
+    head = node->next;
     
-  if(node->next)
+  if(node->next != NULL)
     node->next->prev = node->prev;
+  else
+    tail = node->prev;
   
   int cleared = node->entry->bytes + sizeof(cache_entry);
   memory_counter -= cleared; 
