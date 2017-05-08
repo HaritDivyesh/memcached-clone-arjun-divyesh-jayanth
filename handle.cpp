@@ -9,6 +9,7 @@ static void set_expiry(cache_entry *entry){
     if(entry->expiry > 0)
       entry->expiry += std::time(NULL);
   }
+}
 
 static void flush_all(size_t delay)
 {
@@ -41,9 +42,12 @@ static void handle_client(int client_sockfd)
 	while(1) {
 		memset(buffer, 0, sizeof buffer);
 		read(client_sockfd, buffer, sizeof buffer);
-
+		
+		process_stats->bytes_read += sizeof(buffer);
+		
 		if (strncmp(buffer, "quit", 4) == 0) {
 			close(client_sockfd);
+			process_stats->curr_connections--;
 			return;
 		}
 
@@ -54,6 +58,7 @@ static void handle_client(int client_sockfd)
 
 		/* get and gets */
 		if (strncmp(buffer, "get", 3) == 0) {
+		        process_stats->cmd_get++;
 			unsigned gets_flag = 0;
 			if (strncmp(buffer, "gets ", 4) == 0)
 				gets_flag = 1;
@@ -70,11 +75,15 @@ static void handle_client(int client_sockfd)
 			while (key) {
 			        if((*map).count(key) == 0){
 			        	track_misses(key);
+			        	process_stats->get_misses++;
 			        }
+			        
 				if ((*map).count(key) != 0) {
+					process_stats->get_hits++;
 					cache_entry *entry = &(*map)[key];
 					write_VALUE(client_sockfd, entry, gets_flag);
 					write(client_sockfd, entry->data, entry->bytes + 2);
+					process_stats->bytes_written += sizeof(entry->bytes + 2);
 				}
 				key = strtok(NULL, WHITESPACE);
 			}
@@ -119,10 +128,13 @@ static void handle_client(int client_sockfd)
 			len = 0;
 			while (len < atoi(bytes)) {
 				len += read(client_sockfd, readbuffer + len, sizeof readbuffer - len);
+				
 			}
+			process_stats->bytes_read += len;
 
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) == 0) {
+				process_stats->cas_misses++;
 				NOT_FOUND;
 				continue;
 			}
@@ -131,6 +143,7 @@ static void handle_client(int client_sockfd)
 			/* cas stores data only if no one else has updated the data since client read it last */
 			if (entry->cas_unique != atoi(cas_unique)) {
 				EXISTS;
+				process_stats->cas_badval++;
 				continue;
 			}
 
@@ -177,7 +190,8 @@ static void handle_client(int client_sockfd)
 				}
 			}
 			add_to_list(entry);
-
+			
+			process_stats->cas_hits++;
 			(*map)[entry->key] = *entry;
 			STORED;
 			continue;
@@ -190,8 +204,10 @@ static void handle_client(int client_sockfd)
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) == 0) {
 				NOT_FOUND;
+				process_stats->delete_misses++;
 				continue;
 			}
+			process_stats->delete_hits++;
 			cache_entry *entry = &(*map)[key];
 			/* delete the key */
 			free(entry->data);
@@ -204,6 +220,7 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "flush_all", 9) == 0) {
+			process_stats->cmd_flush++;
 			unsigned error_flag = 0;
 			buffer[strcspn(buffer, "\r\n")] = '\0';
 			size_t delay;
@@ -294,7 +311,9 @@ static void handle_client(int client_sockfd)
 						len = 0;
 						while (len < entry->bytes) {
 							len += read(client_sockfd, buffer + len, sizeof buffer - len);
+							
 						}
+						process_stats->bytes_read += len;
 
 						/* 2 is the size of \r\n */
 						len -= 2;
@@ -378,6 +397,7 @@ static void handle_client(int client_sockfd)
 
 					/* get len to append */
 					len += read(client_sockfd, buffer + len, sizeof buffer - len);
+					process_stats->bytes_read += len;
 					len -= 2;
 					if (len < 1) {
 						ERROR;
@@ -442,6 +462,7 @@ static void handle_client(int client_sockfd)
 
 					/* get len to append */
 					len += read(client_sockfd, buffer + len, sizeof buffer - len);
+					process_stats->bytes_read += len;
 					len -= 2;
 					if (len < 1) {
 						ERROR;
@@ -523,6 +544,7 @@ static void handle_client(int client_sockfd)
 
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) == 0) {
+				process_stats->incr_misses++;
 				NOT_FOUND;
 				continue;
 			}
@@ -554,9 +576,11 @@ static void handle_client(int client_sockfd)
 				SERVER_ERROR("Out of memory");
 				continue;
 			}
+			process_stats->incr_hits++;
 			entry->data = tmp;
 			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
 			write(client_sockfd, tmpbuffer, strlen(tmpbuffer));
+			process_stats->bytes_written += sizeof(tmpbuffer);
 			continue;
 		}
 		
@@ -593,6 +617,7 @@ static void handle_client(int client_sockfd)
 
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) == 0) {
+				process_stats->decr_misses++;
 				NOT_FOUND;
 				continue;
 			}
@@ -624,19 +649,136 @@ static void handle_client(int client_sockfd)
 				SERVER_ERROR("Out of memory");
 				continue;
 			}
+			process_stats->decr_hits++;
 			entry->data = tmp;
 			memcpy(entry->data, tmpbuffer, entry->bytes + 2);
 			write(client_sockfd, tmpbuffer, strlen(tmpbuffer));
+			process_stats->bytes_written += sizeof(tmpbuffer);
 			continue;
 		}
 
-		if (strncmp(buffer, "stats ", 6) == 0) { 
+		if (strncmp(buffer, "stats", 5) == 0) {
+		  char tmpbuffer[50];
+		  //char *info = std::strcat("pid ", itoa (process_stats.pid, buf, 10)); 
+		  //snprintf(tmpbuffer, sizeof tmpbuffer, "%d\r\n", new_val);
+		  //printf("%d %d\n", process_stats->pid, getpid());
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT pid %d\r\n", process_stats->pid);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT uptime %d\r\n", (std::time(NULL)-process_stats->start_time));
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT time %ld\r\n", std::time(NULL));
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT version %s\r\n", process_stats->version);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT pointer_size %d\r\n", process_stats->pointer_size);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT curr_items %d\r\n", process_stats->curr_items);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT total_items %d\r\n", process_stats->total_items);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT curr_connections %d\r\n", process_stats->curr_connections);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT total_connections %d\r\n", process_stats->total_connections);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_get %ld\r\n", process_stats->cmd_get);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_set %ld\r\n", process_stats->cmd_set);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cmd_flush %ld\r\n", process_stats->cmd_flush);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT get_hits %ld\r\n", process_stats->get_hits);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT get_misses %ld\r\n", process_stats->get_misses);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT delete_misses %ld\r\n", process_stats->delete_misses);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT delete_hits %ld\r\n", process_stats->delete_hits);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT incr_misses %ld\r\n", process_stats->incr_misses);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT incr_hits %ld\r\n", process_stats->incr_hits);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT decr_misses %ld\r\n", process_stats->decr_misses);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT decr_hits %ld\r\n", process_stats->decr_hits);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_misses %ld\r\n", process_stats->cas_misses);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_hits %ld\r\n", process_stats->cas_hits);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT cas_badval %ld\r\n", process_stats->cas_badval);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT evictions %ld\r\n", process_stats->evictions);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT bytes_read %ld\r\n", process_stats->bytes_read);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT bytes_written %ld\r\n", process_stats->bytes_written);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  snprintf(tmpbuffer, sizeof tmpbuffer, "STAT limit_maxbytes %d\r\n", process_stats->limit_maxbytes);
+		  STAT(tmpbuffer);
+		  memset(&tmpbuffer[0], '\0', sizeof(tmpbuffer));
+		  
+		  END;
+		  continue;
 
 		}
 				
 
 		if (strncmp(buffer, "set ", 4) == 0) {
 			ssize_t len;
+			process_stats->cmd_set++;
 			char *key = strtok((buffer + strlen("set ")), WHITESPACE);
 			if (!key) {
 				ERROR;
@@ -681,7 +823,9 @@ static void handle_client(int client_sockfd)
 			len = 0;
 			while (len < entry->bytes) {
 				len += read(client_sockfd, buffer + len, sizeof buffer - len);
+				
 			}
+			process_stats->bytes_read += len;
 
 			/* 2 is the size of \r\n */
 			len -= 2;
@@ -725,6 +869,8 @@ static void handle_client(int client_sockfd)
 			add_to_list(entry);
 
 			(*map)[entry->key] = *entry;
+			process_stats->curr_items++;
+			process_stats->total_items++;
 			STORED;
 			continue;
 		}

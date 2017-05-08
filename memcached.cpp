@@ -44,6 +44,8 @@ int main(int argc, char **argv)
 	*/
 	while(1) {
 		client_sockfd = accept(sockfd, (struct sockaddr*) &client_addr, &addrlen);
+		process_stats->curr_connections++;
+		process_stats->total_connections++;
 		std::thread t = std::thread(handle_client, client_sockfd);
 		t.detach();
 	}

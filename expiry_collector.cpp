@@ -11,6 +11,7 @@ static void sweep(node_t *node){
   memory_counter -= cleared; 
   printf("memory counter after collection %d\n", memory_counter); 
   map->erase(node->entry->key);
+  process_stats->curr_items--;
   free(node);
   
   //return cleared;

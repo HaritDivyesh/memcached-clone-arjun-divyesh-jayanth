@@ -29,7 +29,11 @@
 #define MEMORY_THRESHOLD 250
 #define WHITESPACE " \t\n\v\f\r"
 
-#define _WRITER(X) write(client_sockfd, X "\r\n", sizeof(X "\r\n"))
+#define _WRITER(X){\
+ write(client_sockfd, X "\r\n", sizeof(X "\r\n"));\
+ process_stats->bytes_written += sizeof(X "\r\n");\
+ }
+#define STAT_WRITER(X) write(client_sockfd, X, sizeof(X))
 
 /*
 * Replies
@@ -43,7 +47,7 @@
 #define END _WRITER("END")
 #define OK _WRITER("OK")
 #define VERSION _WRITER("VERSION " VERSION_STR)
-
+#define STAT(x) STAT_WRITER(x)
 /*
 * Error strings
 */
@@ -103,6 +107,47 @@ static std::mutex list_mutex;
 /* default value is LRU */
 static policy_t policy = LRU;
 
+
+typedef struct{
+  int32_t pid = getpid();
+  int32_t start_time = std::time(NULL); //for calculation of uptime
+  int32_t uptime;
+  int32_t time;
+  char *version = VERSION_STR;
+  int32_t pointer_size = sizeof(uintptr_t)*8;
+  int32_t rusage_user;
+  int32_t rusage_system;
+  int32_t curr_items = 0;
+  int32_t total_items = 0;
+  int64_t bytes = 0;
+  int32_t curr_connections = 0;
+  int32_t total_connections = 0;
+  int32_t connection_structures = 0;
+  int32_t reserved_fds = 0;
+  int64_t cmd_get = 0;
+  int64_t cmd_set = 0;
+  int64_t cmd_flush = 0;
+  int64_t get_hits = 0;
+  int64_t get_misses = 0;
+  int64_t delete_misses = 0;
+  int64_t delete_hits = 0;
+  int64_t incr_misses = 0;
+  int64_t incr_hits = 0;
+  int64_t decr_misses = 0;
+  int64_t decr_hits = 0;
+  int64_t cas_misses = 0; 
+  int64_t cas_hits = 0;
+  int64_t cas_badval = 0;
+  int64_t evictions = 0;
+  int64_t reclaimed = 0;
+  int64_t bytes_read = 0;
+  int64_t bytes_written = 0;
+  int32_t limit_maxbytes = MEMORY_THRESHOLD;
+  int32_t threads = 0; 
+} stats;
+
+stats *process_stats = new stats();
+
 static void write_VALUE(int client_sockfd, cache_entry *entry, unsigned gets_flag)
 {
 	std::ostringstream os;  
@@ -123,5 +168,6 @@ static void print_map(MCMap *map)
 		std::cout << p.second.bytes << '\n';
 	}
 }
+
 
 #endif

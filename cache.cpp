@@ -52,6 +52,7 @@ static int run_lru(size_t new_item_size)
 		printf("%s %s\n", "erased key:", poped->entry->key.c_str());
 		memory_counter -= sizeof(cache_entry);
 		free(poped);
+		process_stats->evictions++;
 		printf("%s: %u\n", "counter after erase", memory_counter);
 	} while (poped_size < new_item_size);
 	return 0;
@@ -133,6 +134,7 @@ static int run_random(size_t new_item_size)
 		printf("%s %s\n", "erased key:", poped->entry->key.c_str());
 		memory_counter -= sizeof(cache_entry);
 		free(poped);
+		process_stats->evictions++;
 		printf("%s: %u\n", "counter after erase", memory_counter);
 	} while (poped_size < new_item_size);
 	return 0;
@@ -265,6 +267,8 @@ static int run_landlord(size_t new_item_size)
           //std::cout<<"38\n";
           
           free(temp);
+          process_stats->curr_items--;
+          process_stats->evictions++;
           //std::cout<<"39\n";
          
        }
