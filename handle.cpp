@@ -378,7 +378,7 @@ static void handle_client(int client_sockfd)
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) != 0) {
 	
-			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
+			cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
 			if (!entry) {
 					//free(entry);
 					ERROR;
