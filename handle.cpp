@@ -347,44 +347,37 @@ static void handle_client(int client_sockfd)
 		}
 
 		if (strncmp(buffer, "replace ", 8) == 0) {
-			//Currently Error
-			printf("In starting");
+			
 			ssize_t len;
 			char *key = strtok((buffer + strlen("replace ")), WHITESPACE);
 			buffer[strcspn(buffer, "\r\n")] = '\0';
 
 			if (!key) {
 				ERROR;
-				printf("In key");
 				continue;
 			}
 
 			char *flags = strtok(NULL, WHITESPACE);
 			if (!flags) {
 				ERROR;
-				printf("In flags");
 				continue;
 			}
 
 			char *expiry = strtok(NULL, WHITESPACE);
 			if (!expiry) {
 				ERROR;
-				printf("In expiry");
 				continue;
 			}
 
 			char *bytes = strtok(NULL, WHITESPACE);
 			if (!bytes) {
 				ERROR;
-				printf("In bytes");
 				continue;
 			}
 
-			printf("Before condn");
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) != 0) {
-		
-			printf("In SET condtion");
+	
 			cache_entry *entry = (cache_entry*) malloc(sizeof(cache_entry));
 			if (!entry) {
 					//free(entry);
@@ -395,11 +388,9 @@ static void handle_client(int client_sockfd)
 			memory_counter += sizeof(cache_entry);
 			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
 			printf("%s: %u\n", "counter", memory_counter);
-			//printf("key %s %d %d\n",key,atoi(flags),atoi(expiry));
 			entry->key = key;
 			entry->flags = atoi(flags);
 			entry->expiry = atoi(expiry);
-			printf("Beech ka SET condtion");
 			set_expiry(entry);
 
 			entry->bytes = atoi(bytes);
@@ -411,20 +402,18 @@ static void handle_client(int client_sockfd)
 			while (len < entry->bytes) {
 				len += read(client_sockfd, buffer + len, sizeof buffer - len);
 			}
-			printf("Baad ka SET condtion");
+
 			/* 2 is the size of \r\n */
 			len -= 2;
 			if (len < 1) {
 				free(entry);
 				ERROR;
-				printf("In zero");
 				CLIENT_ERROR("bad data chunk");
 				continue;
 			}
 			if (len > entry->bytes) {
 				free(entry);
 				ERROR;
-				printf("In greater");
 				continue;
 			}
 			/* reassign so that bytes is not greater than len */
@@ -432,12 +421,10 @@ static void handle_client(int client_sockfd)
 			entry->data = (char*)malloc(entry->bytes + 2);
 			memory_counter += entry->bytes;
 			memcpy(entry->data, buffer, entry->bytes + 2);
-			printf("Just before FURTHER SET condtion");
 			//std::lock_guard<std::mutex> guard(map_mutex);
 			/* CHECK FOR THRESHOLD BREACH */
 			printf("%s: %u\n", "counter", memory_counter);
 
-			printf("FURTHER SET");
 				if (memory_counter > MEMORY_THRESHOLD) {
 					// collect();
 					if (memory_counter > MEMORY_THRESHOLD || (MEMORY_THRESHOLD -memory_counter <= (entry->bytes + sizeof(cache_entry)))) {
@@ -451,7 +438,6 @@ static void handle_client(int client_sockfd)
 					}
 				}
 				add_to_list(entry);
-				printf("In End of set");
 				(*map)[entry->key] = *entry;
 				STORED;
 				continue;
@@ -459,10 +445,8 @@ static void handle_client(int client_sockfd)
 			
 			else {
 				NOT_STORED;
-				printf("In ELSE");
 				continue;
 			}		
-			printf("AT THE END");
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
