@@ -1,0 +1,24 @@
+# For each command, the first line will be a positive integer W
+# where W is the number of lines required by the command.
+# This will be followed by W lines of commands
+# E.g.
+#  _________________
+#  | 2             |
+#  | set meg 1 0 5 |
+#  | Hello         |
+#  -----------------
+# means the command has 2 writes and expects 1 lines of reply (i.e. STORED)
+# Any line beginning with a # is a comment.
+# Any empty line is ignored.
+
+1
+flush_all
+1
+get meg
+2
+set meg 1 0 5
+Hello
+1
+get meg
+1
+quit
