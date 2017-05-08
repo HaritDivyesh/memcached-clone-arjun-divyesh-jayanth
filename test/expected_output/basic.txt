@@ -1,0 +1,12 @@
+flush_all
+OK
+get meg
+END
+set meg 1 0 5
+Hello
+STORED
+get meg
+VALUE meg 1 5
+Hello
+END
+quit
