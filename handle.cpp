@@ -507,132 +507,192 @@ static void handle_client(int client_sockfd)
 
 			(*map)[entry->key] = *entry;
 			STORED;
-			continue;	
+			continue;
 		}
 
 		if (strncmp(buffer, "append ", 7) == 0) {
 			/* resolved */
 			ssize_t len;
 			char *key = strtok((buffer + strlen("append ")), WHITESPACE);
+			buffer[strcspn(buffer, "\r\n")] = '\0';
+			char readbuffer[CLIENT_BUFFER_SIZE] = {0};
+			cache_entry *entry;
+
 			if (!key) {
 				ERROR;
 				continue;
 			}
 
-			char *bytes = strtok(NULL, WHITESPACE);
-			if (!bytes) {
+			char *flags = strtok(NULL, WHITESPACE);
+			if (!flags || validate_num(flags)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
-			if ((*map).count(key) != 0) {
-				cache_entry *entry = &(*map)[key];
-				memset(buffer, 0, sizeof buffer);
-				len = 0;
 
-				/* get len to append */
-				len = read(client_sockfd, buffer + len, sizeof buffer - len);
-				process_stats->bytes_read += len;
-				len -= 2;
-				if (len < 1) {
+			char *expiry = strtok(NULL, WHITESPACE);
+			if (!expiry || validate_num(expiry)) {
+				ERROR;
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+
+			char *bytes = strtok(NULL, WHITESPACE);
+			if (!bytes || validate_num(bytes)) {
+				ERROR;
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+
+			len = 0;
+			while (len < atoi(bytes)) {
+				len += read(client_sockfd, readbuffer + len, sizeof readbuffer - len);
+			}
+
+			if ((*map).count(key) == 0) {
+				NOT_STORED;
+				continue;
+			}
+
+			entry = &(*map)[key];
+
+			/* 2 is the size of \r\n */
+			len -= 2;
+			if (len < 1 || len > atoi(bytes)) {
+				ERROR;
+				CLIENT_ERROR("bad data chunk");
+				continue;
+			}
+
+			size_t orig_end = entry->bytes;
+			entry->bytes = len + entry->bytes;
+			entry->cas_unique = generate_cas_unique();
+			entry->flags = atoi(flags);
+			entry->expiry = atoi(expiry);
+
+			set_expiry(entry);
+
+			char *tmp_data = (char*) realloc(entry->data, entry->bytes + 2);
+			if (!tmp_data) {
+				ERROR;
+				SERVER_ERROR("Out of memory");
+				continue;
+			}
+			entry->data = tmp_data;
+			memory_counter += len;
+			memcpy(entry->data + orig_end, readbuffer, entry->bytes + 2);
+
+			/* CHECK FOR THRESHOLD BREACH */
+			printf("%s: %u\n", "counter", memory_counter);
+			if (memory_counter > memory_limit) {
+				int ret = run_replacement(entry->bytes);
+				if (ret) {
+					free(entry);
 					ERROR;
-					CLIENT_ERROR("Nothing added to value");
+					SERVER_ERROR("Out of memory");
 					continue;
 				}
-
-				/* reassign so that bytes is not greater than len */
-				
-				entry->cas_unique = generate_cas_unique();
-				size_t orig_end = entry->bytes;
-				entry->bytes = len + entry->bytes;
-				
-				
-				entry->data = (char*) realloc(entry->data, entry->bytes + 2);
-				memory_counter += len;
-				
-				memcpy(entry->data + orig_end, buffer, entry->bytes + 2);
-
-				std::lock_guard<std::mutex> guard(map_mutex);
-				/* CHECK FOR THRESHOLD BREACH */
-				printf("%s: %u\n", "counter", memory_counter);
-				if (memory_counter > memory_limit) {
-					int ret = run_replacement(entry->bytes);
-					if (ret) {
-						free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
-					}
-				}
-				add_to_list(entry);
-
-				(*map)[entry->key] = *entry;
-				STORED;
-				continue;
 			}
-			NOT_STORED;
+			/* so as to update the lru stuff */
+			remove_from_list(entry);
+			add_to_list(entry);
+			STORED;
 			continue;
 		}
 
 
 
 		if (strncmp(buffer, "prepend ", 8) == 0) {
-			/*RESOLVED*/			
 			ssize_t len;
 			char *key = strtok((buffer + strlen("prepend ")), WHITESPACE);
+			buffer[strcspn(buffer, "\r\n")] = '\0';
+			char readbuffer[CLIENT_BUFFER_SIZE] = {0};
+			cache_entry *entry;
+
 			if (!key) {
 				ERROR;
 				continue;
 			}
 
-			char *bytes = strtok(NULL, WHITESPACE);
-			if (!bytes) {
+			char *flags = strtok(NULL, WHITESPACE);
+			if (!flags || validate_num(flags)) {
 				ERROR;
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
 
-			if ((*map).count(key) != 0) {
-				cache_entry *entry = &(*map)[key];
-				memset(buffer, 0, sizeof buffer);
-				len = read(client_sockfd, buffer, sizeof buffer);
-				process_stats->bytes_read += len;
-				len -= 2;
-				if (len < 1) {
+			char *expiry = strtok(NULL, WHITESPACE);
+			if (!expiry || validate_num(expiry)) {
+				ERROR;
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+
+			char *bytes = strtok(NULL, WHITESPACE);
+			if (!bytes || validate_num(bytes)) {
+				ERROR;
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+
+			std::lock_guard<std::mutex> guard(map_mutex);
+
+			len = 0;
+			while (len < atoi(bytes)) {
+				len += read(client_sockfd, readbuffer + len, sizeof readbuffer - len);
+			}
+
+			if ((*map).count(key) == 0) {
+				NOT_STORED;
+				continue;
+			}
+
+			entry = &(*map)[key];
+
+			/* 2 is the size of \r\n */
+			len -= 2;
+			if (len < 1 || len > atoi(bytes)) {
+				ERROR;
+				CLIENT_ERROR("bad data chunk");
+				continue;
+			}
+
+			size_t orig_end = entry->bytes;
+			entry->bytes = len + entry->bytes;
+			entry->cas_unique = generate_cas_unique();
+			entry->flags = atoi(flags);
+			entry->expiry = atoi(expiry);
+
+			set_expiry(entry);
+
+			char *tmp_data = (char*) realloc(entry->data, entry->bytes + 2);
+			if (!tmp_data) {
+				ERROR;
+				SERVER_ERROR("Out of memory");
+				continue;
+			}
+			entry->data = tmp_data;
+			memory_counter += len;
+			memmove(entry->data + len, entry->data, orig_end + 2);
+			memcpy(entry->data, readbuffer, len);
+
+			/* CHECK FOR THRESHOLD BREACH */
+			printf("%s: %u\n", "counter", memory_counter);
+			if (memory_counter > memory_limit) {
+				int ret = run_replacement(entry->bytes);
+				if (ret) {
+					free(entry);
 					ERROR;
-					CLIENT_ERROR("Nothing added to value");
+					SERVER_ERROR("Out of memory");
 					continue;
 				}
-				char * temp;
-				/* reassign so that bytes is not greater than len */
-				entry->cas_unique = generate_cas_unique();
-				
-				temp = (char*) realloc(entry->data, entry->bytes + (uint32_t)len + 2);
-				
-				int orig_bytes = entry->bytes;
-				entry->bytes += len;
-				
-				memory_counter += entry->bytes + (uint32_t)len;
-				memmove(temp+len, temp, orig_bytes+2);
-				memcpy(temp, buffer, len);
-				
-				std::lock_guard<std::mutex> guard(map_mutex);
-				/* CHECK FOR THRESHOLD BREACH */
-				printf("%s: %u\n", "counter", memory_counter);
-				if (memory_counter > memory_limit) {
-					int ret = run_replacement(entry->bytes);
-					if (ret) {
-						free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
-					}
-				}
-				add_to_list(entry);
-
-				(*map)[entry->key] = *entry;
-				STORED;
-				continue;
 			}
-			NOT_STORED;
+			/* so as to update the lru stuff */
+			remove_from_list(entry);
+			add_to_list(entry);
+			STORED;
 			continue;
 		}
 
