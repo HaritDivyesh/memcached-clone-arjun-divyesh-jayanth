@@ -4,22 +4,22 @@ static void init_lru(void)
 
 }
 
-static void add_to_list_lru(cache_entry* entry)
+static void add_to_list_lru(cache_entry* entry)              //Add nodes to head
 {
 	node_t *node = (node_t*) malloc(sizeof(node_t));
 	node->entry = entry;
-	node->next = NULL;
+	node->prev = NULL;
 	if (!head) {
-		node->prev = NULL;
+		node->next = NULL;
 		head = tail = node;
 		return;
 	}
-	node->prev = tail;
-	tail->next = node;
-	tail = node;
+	node->next = head;
+	head->prev = node;
+	head = node;
 }
 
-static node_t *pop_lru(void)
+static node_t *pop_lru(void)				//Pop nodes from tail
 {
 	node_t* tmp;
 	if (!tail)
