@@ -1034,7 +1034,7 @@ static void handle_client(int client_sockfd)
 				if(expiry[0] == '-')
 					entry->expiry = -(entry->expiry);
 					
-				printf("expiry time = %d\n", entry->expiry);
+				printf("expiry time = %lld\n", entry->expiry);
 			}
 			else{
 				CLIENT_ERROR("bad command line format");

@@ -72,21 +72,25 @@ In a new terminal, start the test script:
 make runtests
 ````
 
+The tester engine waits for 1 second after every command to account for even a slower network connection.
+
 Sample output of tests can be found in `test/test_output.txt`.
 
 
-The tester engine takes as input a script file in the following syntax.
+The tester engine takes as input a script file in the following syntax:
 
-In the script file, for each command the first line will be a positive integer W where W is the number of lines required by the command. This will be followed by W lines of commands
-E.g.
-   _________________
-   | 2             |
-   | set meg 1 0 5 |
-   | Hello         |
-   -----------------
+In the script file, for each command the first line will be a positive integer W where W is the number of lines required by the command. This will be followed by W lines of commands.
+
+Example:
+
+2
+
+set testkey 1 0 5
+
+Hello
+
 means the command has 2 writes. Any line beginning with a # in the script is a comment. All empty lines are ignored.
 
 ## Landlord replacement algorithm
 
-In the landlord algorithm, as a proxy to cost, the difference in time between a *get* miss and succesful *set* for the corresponding key is used. The landlord algorithm has been optmized here my mainitaining the minimal cost element at the head of the linked list. This makes the search for the minimum-cost node a constant time operation.
-
+In the landlord algorithm, as a proxy to cost, the difference in time between a *get* miss and succesful *set* for the corresponding key is used. The landlord algorithm has been optmized here by mainitaining the minimal cost element at the head of the linked list. This makes the search for the minimum-cost node a constant time operation.

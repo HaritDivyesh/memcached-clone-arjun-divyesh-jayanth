@@ -1,10 +1,10 @@
 CC = g++
 
 dev:
-	$(CC) -std=c++11 -Wall -g -pthread memo.cpp -o memo
+	$(CC) -std=c++11 -g -pthread memo.cpp -o memo
 
 tests:
-	$(CC) -std=c++11 -Wall -g -pthread test/tester.cpp -o test/tester
+	$(CC) -std=c++11 -g -pthread test/tester.cpp -o test/tester
 
 runtests: all tests
 	./test/tester test/input/input_replacement_lru.txt test/expected_output/output_replacement_lru.txt
