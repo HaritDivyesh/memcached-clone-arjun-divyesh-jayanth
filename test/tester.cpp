@@ -133,10 +133,10 @@ int main(int argc, char **argv)
  			strcat(generated_result, buffer);
  			/*printf("strlen of %s: %zu\n", buffer, strlen(buffer));*/
  			write(sockfd, buffer, strlen(buffer));
- 			usleep(100);
+ 			sleep(1);
  			memset(buffer, 0, sizeof buffer);
  		}
- 		
+
 		/*printf("%s\n", "Blocking on read");*/
 		read(sockfd, buffer, sizeof buffer);
 		printf("%s", buffer);

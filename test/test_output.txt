@@ -1,0 +1,118 @@
+flush_all
+OK
+get meg
+END
+set meg 1 0 5
+Hello
+STORED
+get meg
+VALUE meg 1 5
+Hello
+END
+quit
+[TEST SUCCESS] for test/input/basic.txt
+./test/tester test/input/retrieval.txt test/expected_output/retrieval.txt
+flush_all
+OK
+set key 1 0 4
+test
+STORED
+add key 1 0 2
+hi
+NOT_STORED
+replace key 1 0 7
+changed
+STORED
+append key 1 0 3
+ing
+STORED
+prepend key 1 0 3
+new
+STORED
+get key
+VALUE key 1 13
+newchangeding
+END
+delete key
+DELETED
+quit
+[TEST SUCCESS] for test/input/retrieval.txt
+./test/tester test/input/storage.txt test/expected_output/storage.txt
+flush_all
+OK
+set mykey 1 0 4
+test
+STORED
+add key 1 0 2
+hi
+STORED
+replace key 1 0 7
+changed
+STORED
+append mykey 1 0 3
+ing
+STORED
+prepend mykey 1 0 3
+new
+STORED
+quit
+[TEST SUCCESS] for test/input/storage.txt
+./test/tester test/input/misc.txt test/expected_output/misc.txt
+flush_all
+OK
+get key
+END
+set key 1 0 2
+hi
+STORED
+set mykey 1 0 3
+hey
+STORED
+flush_all
+OK
+get key mykey
+END
+version
+VERSION 0.0.1
+quit
+[TEST SUCCESS] for test/input/misc.txt
+./test/tester test/input/incr.txt test/expected_output/incr.txt
+flush_all
+OK
+set mykey 1 0 2
+hi
+STORED
+incr mykey 3
+CLIENT_ERROR cannot increment or decrement non-numeric value
+set key 1 0 2
+50
+STORED
+incr key 5
+55
+set key 1 0 2
+78
+STORED
+incr key -5
+CLIENT_ERROR invalid numeric delta argument
+quit
+[TEST SUCCESS] for test/input/incr.txt
+./test/tester test/input/decr.txt test/expected_output/decr.txt
+flush_all
+OK
+set mykey 1 0 2
+hi
+STORED
+decr mykey 3
+CLIENT_ERROR cannot increment or decrement non-numeric value
+set key 1 0 2
+50
+STORED
+decr key 5
+45
+set key 1 0 2
+99
+STORED
+decr key -5
+CLIENT_ERROR invalid numeric delta argument
+quit
+[TEST SUCCESS] for test/input/decr.txt

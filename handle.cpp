@@ -25,7 +25,8 @@ static int validate_num(char *str)
 static void flush_all(size_t delay)
 {
 	node_t *curr = head;
-	sleep(delay);
+	if (delay)
+		sleep(delay);
 	std::lock_guard<std::mutex> guard(map_mutex);
 	while (curr) {
 		node_t *tmp;
