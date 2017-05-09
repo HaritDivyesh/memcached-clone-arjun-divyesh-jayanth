@@ -9,7 +9,7 @@ set key 1 0 2
 50
 STORED
 decr key 5
-55
+45
 set key 1 0 2
 99
 STORED

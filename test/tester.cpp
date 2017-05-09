@@ -35,10 +35,10 @@ void compare(char *generated, char *expected_values_file, char *input_file)
 		if (!generated_line) {
  			goto error;
  		}
- 		/*if (strcmp(generated_line, expected_line) != 0) {
+ 		if (strcmp(generated_line, expected_line) != 0) {
  			// look for the word ARBITRARY in expected_line.
  			//If exists, ignore corresponding word in generated_line
- 			printf("%s|%s\n", generated_line, expected_line);
+ 			/*printf("%s|%s\n", generated_line, expected_line);
 			char *word = strtok(expected_line, " ");
 			while (word) {
 				if (strcmp(word, "ARBITRARY") == 0) {
@@ -50,8 +50,9 @@ void compare(char *generated, char *expected_values_file, char *input_file)
 					goto error;
  				}
 				word = strtok(NULL, " ");
-			}
- 		}*/
+			}*/
+			goto error;
+ 		}
 	}
 
 	printf("[TEST SUCCESS] for %s\n", input_file);

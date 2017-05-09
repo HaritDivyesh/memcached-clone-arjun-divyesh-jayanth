@@ -5,19 +5,19 @@ test
 STORED
 add key 1 0 2
 hi
-STORED
+NOT_STORED
 replace key 1 0 7
 changed
 STORED
-append mykey 1 0 3
+append key 1 0 3
 ing
 STORED
-prepend mykey 1 0 3
+prepend key 1 0 3
 new
 STORED
-get mykey
-VALUE mykey 1 10
-newtesting
+get key
+VALUE key 1 13
+newchangeding
 END
 delete key
 DELETED

@@ -229,7 +229,8 @@ static void handle_client(int client_sockfd)
 			if (memory_counter > memory_limit) {
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
-					free(entry);
+					//free(entry);
+					delete entry;
 					ERROR;
 					SERVER_ERROR("Out of memory");
 					continue;
@@ -293,6 +294,7 @@ static void handle_client(int client_sockfd)
 			ssize_t len;
 			char *key = strtok((buffer + strlen("add ")), WHITESPACE);
 			buffer[strcspn(buffer, "\r\n")] = '\0';
+			char readbuffer[CLIENT_BUFFER_SIZE] = {0};
 
 			if (!key) {
 				ERROR;
@@ -316,110 +318,112 @@ static void handle_client(int client_sockfd)
 				ERROR;
 				continue;
 			}
-			
+
+			/* Read actual data and add to map*/
+			len = 0;
+			while (len < atoi(bytes)) {
+				len += read(client_sockfd, readbuffer + len, sizeof readbuffer - len);
+				
+			}
+
 			std::lock_guard<std::mutex> guard(map_mutex);
 			if ((*map).count(key) != 0) {
 				NOT_STORED;
 				cache_entry *entry = &(*map)[key];
+				printf("%s\n", "*********");
 				remove_from_list(entry);
 				add_to_list(entry);
+				printf("%s\n", "######");
 				continue;
 			}
-	
-			else {
-				cache_entry *entry = new cache_entry();//(cache_entry*) malloc(sizeof(cache_entry));
-				
-				if(validate_num(flags) == 0){
-					entry->flags = atoi(flags);
-				}
-				else{
-					CLIENT_ERROR("bad command line format");
-					continue;
-				}
+			cache_entry *entry = new cache_entry();
 			
-				char *exp_temp = expiry;
-				if(expiry[0] == '-')
-					exp_temp = expiry+1;
-				 
-				if(validate_num(exp_temp) == 0){
-					entry->expiry = atoi(exp_temp);
-				
-					if(expiry[0] == '-')
-						entry->expiry = -(entry->expiry);
-				}
-				else{
-					CLIENT_ERROR("bad command line format");
-					continue;
-				}
-				
-				
-
-				set_expiry(entry);
-
-				if(validate_num(bytes) == 0){
-					entry->bytes = atoi(bytes);
-				}
-				else{
-					CLIENT_ERROR("bad command line format");
-					continue;
-				}
-				
-				if(entry->bytes > 0 && entry->expiry >= 0)
-					memory_counter += sizeof(cache_entry);
-				
-				printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
-				printf("%s: %u\n", "counter", memory_counter);
-				entry->key = key;
-				
-				
-				entry->cas_unique = generate_cas_unique();
-
-				/* Read actual data and add to map*/
-				memset(buffer, 0, sizeof buffer);
-				len = 0;
-				while (len < entry->bytes) {
-					len += read(client_sockfd, buffer + len, sizeof buffer - len);
-					
-				}
-				process_stats->bytes_read += len;
-
-				/* 2 is the size of \r\n */
-				len -= 2;
-				if (len < 1) {
-					free(entry);
-					ERROR;
-					CLIENT_ERROR("bad data chunk");
-					continue;
-				}
-				if (len > entry->bytes) {
-					free(entry);
-					ERROR;
-					continue;
-				}
-				/* reassign so that bytes is not greater than len */
-				entry->bytes = (uint32_t)len;
-				entry->data = (char*)malloc(entry->bytes + 2);
-				memory_counter += entry->bytes;
-				memcpy(entry->data, buffer, entry->bytes + 2);
-
-				//std::lock_guard<std::mutex> guard(map_mutex);
-				/* CHECK FOR THRESHOLD BREACH */
-				printf("%s: %u\n", "counter", memory_counter);
-				if (memory_counter > memory_limit) {
-					int ret = run_replacement(entry->bytes);
-					if (ret) {
-						free(entry);
-						ERROR;
-						SERVER_ERROR("Out of memory");
-						continue;
-					}
-				}
-				add_to_list(entry);
-
-				(*map)[entry->key] = *entry;
-				STORED;
+			if(validate_num(flags) == 0){
+				entry->flags = atoi(flags);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
 				continue;
 			}
+		
+			char *exp_temp = expiry;
+			if(expiry[0] == '-')
+				exp_temp = expiry+1;
+			 
+			if(validate_num(exp_temp) == 0){
+				entry->expiry = atoi(exp_temp);
+			
+				if(expiry[0] == '-')
+					entry->expiry = -(entry->expiry);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
+			
+
+			set_expiry(entry);
+
+			if(validate_num(bytes) == 0){
+				entry->bytes = atoi(bytes);
+			}
+			else{
+				CLIENT_ERROR("bad command line format");
+				continue;
+			}
+			
+			if(entry->bytes > 0 && entry->expiry >= 0)
+				memory_counter += sizeof(cache_entry);
+			
+			printf("sizeof(cache_entry): %lu\n", sizeof(cache_entry));
+			printf("%s: %u\n", "counter", memory_counter);
+			entry->key = key;
+			
+			
+			entry->cas_unique = generate_cas_unique();
+
+			process_stats->bytes_read += len;
+
+			/* 2 is the size of \r\n */
+			len -= 2;
+			if (len < 1) {
+				//free(entry);
+				delete entry;
+				ERROR;
+				CLIENT_ERROR("bad data chunk");
+				continue;
+			}
+			if (len > entry->bytes) {
+				//free(entry);
+				delete entry;
+				ERROR;
+				continue;
+			}
+			/* reassign so that bytes is not greater than len */
+			entry->bytes = (uint32_t)len;
+			entry->data = (char*)malloc(entry->bytes + 2);
+			memory_counter += entry->bytes;
+			memcpy(entry->data, readbuffer, entry->bytes + 2);
+
+			//std::lock_guard<std::mutex> guard(map_mutex);
+			/* CHECK FOR THRESHOLD BREACH */
+			printf("%s: %u\n", "counter", memory_counter);
+			if (memory_counter > memory_limit) {
+				int ret = run_replacement(entry->bytes);
+				if (ret) {
+					//free(entry);
+					delete entry;
+					ERROR;
+					SERVER_ERROR("Out of memory");
+					continue;
+				}
+			}
+			add_to_list(entry);
+
+			(*map)[entry->key] = *entry;
+			STORED;
+			continue;
 		}
 
 		if (strncmp(buffer, "replace ", 8) == 0) {
@@ -507,7 +511,8 @@ static void handle_client(int client_sockfd)
 			if (memory_counter > memory_limit) {
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
-					free(entry);
+					//free(entry);
+					delete entry;
 					ERROR;
 					SERVER_ERROR("Out of memory");
 					continue;
@@ -599,15 +604,16 @@ static void handle_client(int client_sockfd)
 			if (memory_counter > memory_limit) {
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
-					free(entry);
+					//free(entry);
+					delete entry;
 					ERROR;
 					SERVER_ERROR("Out of memory");
 					continue;
 				}
 			}
 			/* so as to update the lru stuff */
-			remove_from_list(entry);
-			add_to_list(entry);
+			//remove_from_list(entry);
+			//add_to_list(entry);
 			STORED;
 			continue;
 		}
@@ -693,15 +699,16 @@ static void handle_client(int client_sockfd)
 			if (memory_counter > memory_limit) {
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
-					free(entry);
+					//free(entry);
+					delete entry;
 					ERROR;
 					SERVER_ERROR("Out of memory");
 					continue;
 				}
 			}
 			/* so as to update the lru stuff */
-			remove_from_list(entry);
-			add_to_list(entry);
+			//remove_from_list(entry);
+			//add_to_list(entry);
 			STORED;
 			continue;
 		}
@@ -1067,13 +1074,15 @@ static void handle_client(int client_sockfd)
 			/* 2 is the size of \r\n */
 			len -= 2;
 			if (len < 1) {
-				free(entry);
+				//free(entry);
+				delete entry;
 				ERROR;
 				CLIENT_ERROR("bad data chunk");
 				continue;
 			}
 			if (len > entry->bytes) {
-				free(entry);
+				//free(entry);
+				delete entry;
 				ERROR;
 				CLIENT_ERROR("bad data chunk");
 				continue;
@@ -1091,7 +1100,8 @@ static void handle_client(int client_sockfd)
 			if (memory_counter > memory_limit) {
 				int ret = run_replacement(entry->bytes);
 				if (ret) {
-					free(entry);
+					//free(entry);
+					delete entry;
 					ERROR;
 					SERVER_ERROR("Out of memory");
 					continue;

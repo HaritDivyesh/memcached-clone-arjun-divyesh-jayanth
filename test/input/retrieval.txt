@@ -10,13 +10,13 @@ hi
 replace key 1 0 7
 changed
 2
-append mykey 1 0 3
+append key 1 0 3
 ing
 2
-prepend mykey 1 0 3
+prepend key 1 0 3
 new
 1
-get mykey
+get key
 1
 delete key
 1

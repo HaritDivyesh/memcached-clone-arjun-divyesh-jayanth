@@ -307,7 +307,7 @@ void remove_from_list(cache_entry* entry)
 {
 	node_t *tmp = head;
 	while (tmp) {
-		if (tmp->entry == entry) {
+		if (tmp->entry->key == entry->key) {
 			if (tmp->prev)
 				tmp->prev->next = tmp->next;
 			if (tmp->next)
