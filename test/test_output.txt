@@ -1,3 +1,39 @@
+./test/tester test/input/input_replacement_lru.txt test/expected_output/output_replacement_lru.txt
+flush_all
+OK
+set first 1 0 2
+hi
+STORED
+set second 1 0 3
+hey
+STORED
+set third 1 0 4
+heya
+STORED
+set fourth 1 0 10
+1234567890
+STORED
+set fifth 0 0 8 
+Hello hi
+STORED
+set sixth 12 0 5
+Yello
+STORED
+set seventh 17 0 1
+K
+STORED
+get first
+END
+set eighth 13 0 7 
+Helloyu
+STORED
+get second
+END
+get third
+END
+quit
+[TEST SUCCESS] for test/input/input_replacement_lru.txt
+./test/tester test/input/basic.txt test/expected_output/basic.txt
 flush_all
 OK
 get meg
@@ -11,32 +47,6 @@ Hello
 END
 quit
 [TEST SUCCESS] for test/input/basic.txt
-./test/tester test/input/retrieval.txt test/expected_output/retrieval.txt
-flush_all
-OK
-set key 1 0 4
-test
-STORED
-add key 1 0 2
-hi
-NOT_STORED
-replace key 1 0 7
-changed
-STORED
-append key 1 0 3
-ing
-STORED
-prepend key 1 0 3
-new
-STORED
-get key
-VALUE key 1 13
-newchangeding
-END
-delete key
-DELETED
-quit
-[TEST SUCCESS] for test/input/retrieval.txt
 ./test/tester test/input/storage.txt test/expected_output/storage.txt
 flush_all
 OK

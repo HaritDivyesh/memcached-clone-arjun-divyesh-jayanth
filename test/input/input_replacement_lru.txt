@@ -1,0 +1,34 @@
+1
+flush_all
+2
+set first 1 0 2
+hi
+2
+set second 1 0 3
+hey
+2
+set third 1 0 4
+heya
+2
+set fourth 1 0 10
+1234567890
+2
+set fifth 0 0 8 
+Hello hi
+2
+set sixth 12 0 5
+Yello
+2
+set seventh 17 0 1
+K
+1
+get first
+2
+set eighth 13 0 7 
+Helloyu
+1
+get second
+1
+get third
+1
+quit
